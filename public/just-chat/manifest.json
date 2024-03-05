@@ -1,6 +1,7 @@
 {
   "short_name": "Just Chat",
   "name": "Just Chat",
+  "description": "Just Chat with your friends",
   "icons": [
     {
       "src": "favicon.ico",

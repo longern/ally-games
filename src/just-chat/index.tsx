@@ -2,16 +2,17 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Avatar,
   Box,
-  Button,
   Card,
   Container,
   CssBaseline,
+  IconButton,
   Stack,
   TextField,
   ThemeProvider,
   Typography,
   createTheme,
 } from "@mui/material";
+import SendIcon from "@mui/icons-material/Send";
 
 import { ParentSocket } from "../ParentSocket";
 import { Client, GameBoardComponent, makeGame } from "../Client";
@@ -42,7 +43,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
             {chatMessages.map((message) => (
               <Stack
                 key={message.id}
-                gap={2}
+                gap={1}
                 sx={{
                   flexDirection:
                     message.sender !== playerID ? "row" : "row-reverse",
@@ -72,7 +73,6 @@ const GameBoard: GameBoardComponent<typeof game> = ({
                   </Typography>
                   <Card
                     sx={{
-                      backgroundColor: "primary.main",
                       borderRadius: "4px",
                       padding: "0.5em 0.8em",
                       overflowWrap: "anywhere",
@@ -81,27 +81,34 @@ const GameBoard: GameBoardComponent<typeof game> = ({
                     {message.payload}
                   </Card>
                 </Stack>
-                <Box sx={{ width: "60px" }} />
+                <Box sx={{ width: "56px" }} />
               </Stack>
             ))}
           </Stack>
         </Container>
       </Box>
-      <Container maxWidth="md">
-        <form onSubmit={handleSubmit}>
-          <Stack direction="row" sx={{ paddingY: 0.5 }}>
-            <TextField
-              fullWidth
-              size="small"
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-            />
-            <Button type="submit" sx={{ flexShrink: 0 }}>
-              Send
-            </Button>
-          </Stack>
-        </form>
-      </Container>
+      <Box sx={{ backgroundColor: (theme) => theme.palette.background.paper }}>
+        <Container maxWidth="md">
+          <form onSubmit={handleSubmit}>
+            <Stack direction="row" sx={{ paddingY: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                InputProps={{ sx: { borderRadius: "20px" } }}
+              />
+              <IconButton
+                aria-label="Send"
+                type="submit"
+                sx={{ flexShrink: 0 }}
+              >
+                <SendIcon />
+              </IconButton>
+            </Stack>
+          </form>
+        </Container>
+      </Box>
     </Stack>
   );
 };
@@ -125,6 +132,11 @@ export function Component() {
 
   const theme = useMemo(() => {
     return createTheme({
+      palette: {
+        background: {
+          default: "#fafafa",
+        },
+      },
       typography: {
         button: {
           textTransform: "none",
