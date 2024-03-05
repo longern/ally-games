@@ -6,7 +6,6 @@ export type GameState = {
   players: Record<
     string,
     {
-      score: number;
       hand: string[];
       submission: string | undefined;
       boardIndex: number | undefined;
