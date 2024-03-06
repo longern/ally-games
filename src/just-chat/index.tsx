@@ -92,14 +92,17 @@ const GameBoard: GameBoardComponent<typeof game> = ({
       </Box>
       <Box sx={{ backgroundColor: (theme) => theme.palette.background.paper }}>
         <Container maxWidth="md">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autoComplete="off">
             <Stack direction="row" sx={{ paddingY: 1 }}>
               <TextField
                 fullWidth
                 size="small"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                InputProps={{ sx: { borderRadius: "20px" } }}
+                InputProps={{
+                  sx: { borderRadius: "20px" },
+                  "aria-label": "Chat input",
+                }}
               />
               <IconButton
                 aria-label="Send"
