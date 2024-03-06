@@ -11,6 +11,7 @@ import { produce } from "immer";
 type Ctx = {
   numPlayers: number;
   playOrder: string[];
+  playerNames: Record<string, string>;
   isHost: boolean;
 };
 

@@ -20,6 +20,7 @@ import { Client, GameBoardComponent, makeGame } from "../Client";
 const game = makeGame({ setup: () => ({}), moves: {} });
 
 const GameBoard: GameBoardComponent<typeof game> = ({
+  ctx,
   playerID,
   chatMessages,
   sendChatMessage,
@@ -29,6 +30,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+      if (!userInput) return;
       sendChatMessage(userInput);
       setUserInput("");
     },
@@ -52,6 +54,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
               >
                 <Avatar />
                 <Stack
+                  spacing="2px"
                   sx={{
                     flex: "1 1",
                     minWidth: 0,
@@ -69,7 +72,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {message.sender}
+                    {ctx.playerNames[message.sender] ?? message.sender}
                   </Typography>
                   <Card
                     sx={{
