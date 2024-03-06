@@ -8,7 +8,7 @@ import {
 } from "react";
 import { produce } from "immer";
 
-type Ctx = {
+export type Ctx = {
   numPlayers: number;
   playOrder: string[];
   playerNames: Record<string, string>;
