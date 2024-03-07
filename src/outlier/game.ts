@@ -4,7 +4,7 @@ export type GameAction = "emergency" | "vote" | "monitor" | "trade" | "vault";
 
 export type GameState = {
   stage: "decide" | "action" | "conclude";
-  actionStage: GameAction | undefined;
+  actionStage: GameAction | "trade-response" | undefined;
   secret: {
     vault: number[];
     realOutlier: string;
@@ -13,10 +13,11 @@ export type GameState = {
     string,
     {
       hand: number[];
-      vote: string | undefined;
       handInSight: number[] | undefined;
+      faceDown: number[];
       action: GameAction;
       outlierInSight: string;
+      vote: number | undefined;
     }
   >;
   // Players' public information
@@ -25,11 +26,14 @@ export type GameState = {
     {
       action: GameAction | undefined;
       score: number;
+      roundScore: number | undefined;
+      faceDownCount: number;
       done: boolean;
-      vote: string | undefined;
+      vote: number | undefined;
     }
   >;
   targets: Record<string, string>;
+  extra: number | undefined;
 };
 
 function init({ ctx }: { ctx: Ctx }) {
@@ -37,8 +41,8 @@ function init({ ctx }: { ctx: Ctx }) {
   const players = {};
   const pub = {};
   ctx.playOrder.forEach((playerID) => {
-    players[playerID] = {};
-    pub[playerID] = { score: 0 };
+    players[playerID] = { faceDown: [] };
+    pub[playerID] = { score: 0, faceDownCount: 0 };
     if (playerID !== realOutlier)
       players[playerID].outlierInSight = realOutlier;
     else {
@@ -49,15 +53,20 @@ function init({ ctx }: { ctx: Ctx }) {
     }
   });
 
-  const deck = Array.from({ length: ctx.numPlayers }).flatMap((_, i) =>
-    Array.from({ length: ctx.numPlayers }, () => i)
-  );
+  const deck = [
+    -2,
+    ...Array.from({ length: ctx.numPlayers }).flatMap((_, i) =>
+      new Array(ctx.numPlayers).fill(i)
+    ),
+    ...new Array(ctx.numPlayers - 1).fill(-1),
+  ];
 
   for (const playerID in players) {
     const hand = [];
     for (let i = 0; i < ctx.numPlayers - 1; i++) {
       hand.push(deck.splice(Math.floor(Math.random() * deck.length), 1)[0]);
     }
+    hand.sort();
     players[playerID].hand = hand;
   }
 
@@ -78,6 +87,88 @@ function init({ ctx }: { ctx: Ctx }) {
   } as GameState;
 }
 
+function nextAction({ G }: { G: GameState }) {
+  const actions: GameAction[] = ["vote", "monitor", "trade", "vault"];
+  const currentIndex = actions.findIndex((action) =>
+    G.actionStage?.startsWith(action)
+  );
+  const nextAction = actions
+    .slice(currentIndex + 1)
+    .find((action) =>
+      Object.values(G.players).some((player) => player.action === action)
+    );
+
+  G.targets = {};
+  if (nextAction) G.actionStage = nextAction;
+  else {
+    G.stage = "decide";
+    Object.keys(G.players).forEach((id) => {
+      G.players[id].action = undefined;
+      G.actionStage = undefined;
+      G.pub[id].action = undefined;
+      G.pub[id].done = false;
+    });
+  }
+}
+
+function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
+  G.stage = "conclude";
+  G.players[G.secret.realOutlier].outlierInSight = G.secret.realOutlier;
+  const numPlayers = Object.keys(G.players).length;
+
+  if (Object.values(G.pub).some((player) => player.action === "emergency")) {
+    const falseEmergency = Object.entries(G.players).filter(
+      ([id, player]) =>
+        player.action === "emergency" && id !== G.secret.realOutlier
+    );
+    const punish = Math.ceil((numPlayers - 1) / falseEmergency.length);
+    const extra =
+      (G.extra || 0) + (punish * falseEmergency.length - (numPlayers - 1));
+    Object.keys(G.players).forEach((id) => {
+      if (G.secret.realOutlier === id) {
+        G.pub[id].roundScore = numPlayers - 1;
+      } else {
+        if (!falseEmergency.length) G.pub[id].roundScore = -1;
+        else if (G.players[id].action !== "emergency") G.pub[id].roundScore = 0;
+        else {
+          G.pub[id].roundScore = -punish;
+        }
+      }
+    });
+    G.extra = extra;
+  } else {
+    const voteCounts = Object.values(G.pub).reduce((acc, { vote }) => {
+      if (vote === -2)
+        new Array(numPlayers).forEach((_, i) => {
+          acc.set(i, (acc.get(i) || 0) + 1);
+        });
+      else if (vote !== -1) acc.set(vote, (acc.get(vote) || 0) + 1);
+      return acc;
+    }, new Map<number, number>());
+    const maxVotes = Math.max(...voteCounts.values());
+    const [maxVoteCard] = Array.from(voteCounts.entries()).find(
+      ([, count]) => count === maxVotes
+    );
+    if (ctx.playOrder[maxVoteCard] === G.secret.realOutlier) {
+      Object.keys(G.players).forEach((id) => {
+        if (G.secret.realOutlier === id) {
+          G.pub[id].roundScore = -(numPlayers - 1);
+        } else {
+          G.pub[id].roundScore = 1;
+        }
+      });
+    } else {
+      Object.keys(G.players).forEach((id) => {
+        if (G.secret.realOutlier === id) {
+          G.pub[id].roundScore = numPlayers - 1;
+        } else {
+          G.pub[id].roundScore = -1;
+        }
+      });
+    }
+  }
+}
+
 const game = makeGame({
   setup({ ctx }) {
     return init({ ctx });
@@ -89,51 +180,120 @@ const game = makeGame({
     },
 
     decideAction({ G, ctx, playerID }, action: GameAction) {
-      if (G.stage !== "decide") return;
+      if (G.stage !== "decide" || G.players[playerID].action !== undefined)
+        return;
 
       G.players[playerID].action = action;
 
       if (!ctx.playOrder.every((id) => G.players[id].action !== undefined))
         return;
 
+      // Publicize actions
       ctx.playOrder.forEach((id) => {
         G.pub[id].action = G.players[id].action;
       });
 
       if (ctx.playOrder.some((id) => G.pub[id].action === "emergency")) {
-        G.stage = "conclude";
+        conclude({ G, ctx });
       } else {
         G.stage = "action";
-        const nextAction = ["vote", "monitor", "trade", "vault"].find(
-          (action) => ctx.playOrder.some((id) => G.pub[id].action === action)
-        ) as GameAction | undefined;
-
-        if (nextAction) G.actionStage = nextAction;
-        else G.stage = "decide";
+        nextAction({ G });
       }
     },
 
     forcedTradePickPlayer({ G, playerID }, target: string) {
+      if (
+        G.stage !== "action" ||
+        G.actionStage !== "vote" ||
+        // This is the only player that choose to vote
+        !Object.entries(G.players).every(
+          ([id, player]) =>
+            (id === playerID && player.action === "vote") ||
+            player.action !== "vote"
+        )
+      )
+        return;
+
       G.targets[playerID] = target;
+      G.players[playerID].handInSight = G.players[target].hand;
     },
 
-    forcedTradePickCard({ G, playerID }, yourCard: number, theirCard: number) {
-      G.players[playerID].hand.splice(
-        G.players[playerID].hand.indexOf(yourCard),
-        1,
+    forcedTradePickOtherCard({ G, playerID }, theirCard: number) {
+      if (
+        G.stage !== "action" ||
+        G.actionStage !== "vote" ||
+        // This is the only player that choose to vote
+        !Object.entries(G.players).every(
+          ([id, player]) =>
+            (id === playerID && player.action === "vote") ||
+            player.action !== "vote"
+        ) ||
+        G.targets[playerID] === undefined
+      )
+        return;
+
+      const me = G.players[playerID];
+      const target = G.players[G.targets[playerID]];
+      if (!target.hand.includes(theirCard)) return;
+      me.faceDown = [theirCard];
+      G.pub[playerID].faceDownCount = 1;
+      me.handInSight = undefined;
+      target.hand.splice(target.hand.indexOf(theirCard), 1);
+    },
+
+    forcedTradePickCard({ G, playerID, ctx }, yourCard: number) {
+      if (
+        G.stage !== "action" ||
+        G.actionStage !== "vote" ||
+        // This is the only player that choose to vote
+        !Object.entries(G.players).every(
+          ([id, player]) =>
+            (id === playerID && player.action === "vote") ||
+            player.action !== "vote"
+        ) ||
+        G.players[playerID].faceDown.length === 0
+      )
+        return;
+
+      if (
+        ctx.playOrder[yourCard] !== playerID &&
+        G.players[playerID].hand.some(
+          (card) => ctx.playOrder[card] === playerID
+        )
+      )
+        return;
+
+      const me = G.players[playerID];
+      const target = G.players[G.targets[playerID]];
+      const theirCard = me.faceDown[0];
+      const giveaway = me.hand.splice(me.hand.indexOf(yourCard), 1)[0];
+      target.hand.splice(
+        target.hand.findLastIndex((card) => card <= theirCard) + 1,
+        0,
+        giveaway
+      );
+      me.hand.splice(
+        me.hand.findLastIndex((card) => card <= theirCard) + 1,
+        0,
         theirCard
       );
-      G.players[G.targets[playerID]].hand.splice(
-        G.players[G.targets[playerID]].hand.indexOf(theirCard),
-        1,
-        yourCard
-      );
+      me.faceDown = [];
+      G.pub[playerID].faceDownCount = 0;
+
+      nextAction({ G });
     },
 
-    vote({ G, ctx, playerID }, target: string) {
-      if (G.stage !== "action" || G.actionStage !== "vote") return;
+    vote({ G, ctx, playerID }, card: number) {
+      if (
+        G.stage !== "action" ||
+        G.actionStage !== "vote" ||
+        Object.values(G.players).filter((player) => player.action === "vote")
+          .length < 2 ||
+        !G.players[playerID].hand.includes(card)
+      )
+        return;
 
-      G.players[playerID].vote = target;
+      G.players[playerID].vote = card;
 
       if (!ctx.playOrder.every((id) => G.players[id].vote !== undefined)) {
         return;
@@ -148,13 +308,21 @@ const game = makeGame({
         return;
 
       const voteCounts = Object.values(G.pub).reduce((acc, { vote }) => {
-        acc[vote] = (acc[vote] || 0) + 1;
+        if (vote === -2)
+          new Array(ctx.numPlayers).forEach((_, i) => {
+            acc.set(i, (acc.get(i) || 0) + 1);
+          });
+        else if (vote !== -1) acc.set(vote, (acc.get(vote) || 0) + 1);
         return acc;
-      }, {} as Record<string, number>);
+      }, new Map<number, number>());
 
-      const maxVotes = Math.max(...Object.values(voteCounts));
-      if (maxVotes === ctx.numPlayers) {
-        G.stage = "conclude";
+      const maxVotes = Math.max(...voteCounts.values());
+      if (
+        maxVotes >= ctx.numPlayers - 1 &&
+        Array.from(voteCounts.values()).filter((count) => count === maxVotes)
+          .length === 1
+      ) {
+        conclude({ G, ctx });
         return;
       }
 
@@ -163,12 +331,8 @@ const game = makeGame({
         G.pub[playerID].vote = undefined;
         if (G.players[playerID].action === "vote") G.pub[playerID].done = true;
       });
-      const nextAction = ["monitor", "trade", "vault"].find((action) =>
-        ctx.playOrder.some((id) => G.pub[id].action === action)
-      ) as GameAction | undefined;
 
-      if (nextAction) G.actionStage = nextAction;
-      else G.stage = "decide";
+      nextAction({ G });
     },
 
     monitor({ G, ctx, playerID }, target: string) {
@@ -193,17 +357,20 @@ const game = makeGame({
     },
 
     monitorConclude({ G, ctx, playerID }) {
+      if (
+        G.stage !== "action" ||
+        G.actionStage !== "monitor" ||
+        G.players[playerID].action !== "monitor" ||
+        G.players[playerID].handInSight === undefined
+      )
+        return;
+
       G.players[playerID].handInSight = undefined;
 
       if (!ctx.playOrder.every((id) => G.players[id].handInSight === undefined))
         return;
 
-      const nextAction = ["trade", "vault"].find((action) =>
-        ctx.playOrder.some((id) => G.pub[id].action === action)
-      ) as GameAction | undefined;
-
-      if (nextAction) G.actionStage = nextAction;
-      else G.stage = "decide";
+      nextAction({ G });
     },
 
     tradePickPlayer({ G, playerID }, target: string) {
@@ -211,7 +378,8 @@ const game = makeGame({
         G.stage !== "action" ||
         G.actionStage !== "trade" ||
         G.players[playerID].action !== "trade" ||
-        playerID === target
+        playerID === target ||
+        G.targets[playerID] !== undefined
       )
         return;
 
@@ -219,36 +387,146 @@ const game = makeGame({
     },
 
     tradePickCard({ G, ctx, playerID }, card: number) {
-      const picked = G.players[playerID].hand.splice(
-        G.players[playerID].hand.indexOf(card),
-        1
-      )[0];
-      G.players[G.targets[playerID]].vote = ctx.playOrder[picked];
+      const me = G.players[playerID];
+      if (
+        G.stage !== "action" ||
+        G.actionStage !== "trade" ||
+        me.action !== "trade" ||
+        G.targets[playerID] === undefined ||
+        me.faceDown.length > 0
+      )
+        return;
+
+      if (
+        ctx.playOrder[card] !== playerID &&
+        me.hand.some((card) => ctx.playOrder[card] === playerID)
+      )
+        return;
+
+      const picked = me.hand.splice(me.hand.indexOf(card), 1)[0];
+
+      me.faceDown = [picked];
+      G.pub[playerID].faceDownCount = 1;
+
+      if (
+        Object.entries(G.players)
+          .filter(([, player]) => player.action === "trade")
+          .every(
+            ([id, player]) =>
+              player.faceDown.length > 0 && G.targets[id] !== undefined
+          )
+      )
+        G.actionStage = "trade-response";
     },
 
-    tradePickResponse({ G, playerID }, card: number) {
-      const picked = G.players[playerID].hand.splice(
-        G.players[playerID].hand.indexOf(card),
-        1
-      )[0];
-      G.players[G.targets[playerID]].hand.push(picked);
-    },
+    tradePickResponse({ G, ctx, playerID }, cards: number[]) {
+      if (G.stage !== "action" || G.actionStage !== "trade-response") return;
 
-    vault({ G, playerID }, card: number) {
-      G.players[playerID].hand.splice(
-        G.players[playerID].hand.indexOf(card),
-        1
+      if (
+        cards.some((card) => ctx.playOrder[card] !== playerID) &&
+        G.players[playerID].hand.some(
+          (card) => ctx.playOrder[card] === playerID
+        )
+      )
+        return;
+
+      const sourcePlayers = Object.entries(G.players).filter(
+        ([id, player]) =>
+          player.action === "trade" && G.targets[id] === playerID
       );
-      const randomIndex = Math.floor(Math.random() * G.secret.vault.length);
-      G.players[playerID].hand.push(G.secret.vault[randomIndex]);
-      G.secret.vault.splice(randomIndex, 1);
-      G.pub[playerID].done = true;
+      if (cards.length !== sourcePlayers.length) return;
 
-      if (Object.values(G.pub).every((player) => player.done)) {
-        G.stage = "decide";
+      const me = G.players[playerID];
+      const responses = [];
+      for (const card of cards) {
+        const response = me.hand.splice(me.hand.indexOf(card), 1)[0];
+        const randomIndex = Math.floor(Math.random() * (responses.length + 1));
+        responses.splice(randomIndex, 0, response);
+      }
+      sourcePlayers.forEach(([id, player], index) => {
+        const insertIndex =
+          player.hand.findLastIndex((card) => card <= responses[index]) + 1;
+        player.hand.splice(insertIndex, 0, responses[index]);
+        me.hand.splice(
+          me.hand.findLastIndex((card) => card <= player.faceDown[0]) + 1,
+          0,
+          player.faceDown[0]
+        );
+        player.faceDown = [];
+        G.pub[id].faceDownCount = 0;
+      });
+
+      if (Object.values(G.pub).every((player) => player.faceDownCount === 0)) {
+        nextAction({ G });
       }
     },
+
+    vault({ G, ctx, playerID }, card: number) {
+      if (
+        G.stage !== "action" ||
+        G.actionStage !== "vault" ||
+        G.players[playerID].action !== "vault" ||
+        G.pub[playerID].done
+      )
+        return;
+
+      if (
+        ctx.playOrder[card] !== playerID &&
+        G.players[playerID].hand.some(
+          (card) => ctx.playOrder[card] === playerID
+        )
+      )
+        return;
+
+      const me = G.players[playerID];
+      const giveaway = me.hand.splice(me.hand.indexOf(card), 1)[0];
+      const randomIndex = Math.floor(Math.random() * G.secret.vault.length);
+      const receive = G.secret.vault[randomIndex];
+      me.hand.splice(
+        me.hand.findLastIndex((card) => card <= receive) + 1,
+        0,
+        receive
+      );
+      G.secret.vault.splice(randomIndex, 1, giveaway);
+      G.pub[playerID].done = true;
+
+      if (
+        ctx.playOrder
+          .filter((id) => G.players[id].action === "vault")
+          .every((id) => G.pub[id].done)
+      ) {
+        G.stage = "decide";
+        ctx.playOrder.forEach((id) => {
+          G.players[id].action = undefined;
+          G.actionStage = undefined;
+          G.pub[id].action = undefined;
+          G.pub[id].done = false;
+        });
+      }
+    },
+
+    nextRound({ G, ctx }) {
+      if (G.stage !== "conclude") return;
+
+      ctx.playOrder.forEach((id) => {
+        G.pub[id].score +=
+          G.pub[id].roundScore || 0 + (G.extra >= ctx.numPlayers ? 1 : 0);
+        G.pub[id].roundScore = 0;
+        G.pub[id].action = undefined;
+        G.pub[id].vote = undefined;
+        G.pub[id].faceDownCount = 0;
+        G.pub[id].done = false;
+      });
+
+      if (G.extra >= ctx.numPlayers) G.extra -= ctx.numPlayers;
+
+      const { pub, extra, ...state } = init({ ctx });
+      Object.assign(G, state);
+    },
   },
+
+  minPlayers: 4,
+  maxPlayers: 8,
 });
 
 export default game;

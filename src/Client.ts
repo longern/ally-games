@@ -38,6 +38,8 @@ export type Game<
     ctx: Ctx;
     playerID: string;
   }) => GameState;
+  minPlayers?: number;
+  maxPlayers?: number;
 };
 
 export type GameClientMoves<Moves> = {

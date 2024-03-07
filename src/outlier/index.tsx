@@ -37,12 +37,46 @@ const COLORS = [
   "#9b9a9a",
 ];
 
+function GameCard({
+  card,
+  selected,
+  onClick,
+}: {
+  card: number;
+  selected?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{ transform: selected ? "translateY(-20%)" : undefined }}
+    >
+      <CardActionArea onClick={onClick}>
+        <PersonIcon
+          sx={{
+            fontSize: 73,
+            margin: "24px 12px",
+            ...(card === -2
+              ? { color: "black" }
+              : card === -1
+              ? { visibility: "hidden" }
+              : { color: COLORS[card] }),
+          }}
+        />
+      </CardActionArea>
+    </Card>
+  );
+}
+
 export const GameBoard: GameBoardComponent<typeof game> = ({
   G,
   ctx,
   moves,
   playerID,
 }) => {
+  const [selectedCards, setSelectedCards] = useState<number[]>([]);
+  const [showScores, setShowScores] = useState(false);
+
   const me = G.players[playerID];
 
   const actionIcons = {
@@ -57,7 +91,14 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
     if (G.stage !== "action") return;
     switch (G.actionStage) {
       case "vote":
-        moves.vote(id);
+        if (
+          Object.entries(G.players).every(
+            ([id, player]) =>
+              (id === playerID && player.action === "vote") ||
+              player.action !== "vote"
+          )
+        )
+          moves.forcedTradePickPlayer(id);
         break;
       case "monitor":
         moves.monitor(id);
@@ -68,7 +109,62 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
     }
   };
 
-  console.log(G);
+  const handleClickCard = (index: number) => {
+    if (G.stage !== "action") return;
+    const card = me.hand[index];
+    switch (G.actionStage) {
+      case "vote":
+        if (
+          Object.entries(G.players).every(
+            ([id, player]) =>
+              (id === playerID && player.action === "vote") ||
+              player.action !== "vote"
+          )
+        )
+          moves.forcedTradePickCard(card);
+        else moves.vote(card);
+        break;
+      case "trade":
+        moves.tradePickCard(card);
+        break;
+      case "trade-response":
+        const tradePlayers = ctx.playOrder.filter(
+          (id) => G.pub[id].action === "trade"
+        );
+        const responsesRequired = tradePlayers.filter(
+          (id) => G.targets[id] === playerID
+        ).length;
+        if (responsesRequired === 0) return;
+        const nextSelectedCards = selectedCards.includes(index)
+          ? selectedCards.filter((i) => i !== index)
+          : [...selectedCards, index];
+        setSelectedCards(nextSelectedCards);
+        if (nextSelectedCards.length === responsesRequired) {
+          moves.tradePickResponse(nextSelectedCards.map((i) => me.hand[i]));
+          setSelectedCards([]);
+        }
+        break;
+      case "vault":
+        moves.vault(card);
+        break;
+    }
+  };
+
+  const handleClickOthersCard = (index: number) => {
+    if (G.actionStage !== "vote") return;
+    const card = me.handInSight![index];
+    moves.forcedTradePickOtherCard(card);
+  };
+
+  useEffect(() => {
+    if (G.stage !== "conclude") return;
+    setTimeout(() => {
+      setShowScores(true);
+    }, 1000);
+    return () => {
+      setShowScores(false);
+    };
+  }, [G.stage]);
 
   return (
     <Container maxWidth="md" sx={{ height: "100%" }}>
@@ -85,7 +181,10 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
                 justifyContent: "center",
               }}
             >
-              <Card elevation={0} sx={{ background: "none" }}>
+              <Card
+                elevation={0}
+                sx={{ background: "none", position: "relative" }}
+              >
                 <CardActionArea onClick={() => handleClickAvatar(id)}>
                   <Stack
                     spacing={1}
@@ -104,9 +203,29 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
                       }}
                     >
                       {ctx.playerNames[id] ?? id}
+                      {": "}
+                      {G.pub[id].score}
+                      {showScores && (
+                        <>
+                          {G.pub[id].roundScore >= 0 ? "+" : ""}
+                          {G.pub[id].roundScore}
+                        </>
+                      )}
                     </Box>
                   </Stack>
                 </CardActionArea>
+                {G.pub[id].vote !== undefined && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      left: 10,
+                      bottom: -10,
+                      transform: "scale(0.35)",
+                    }}
+                  >
+                    <GameCard card={G.pub[id].vote} />
+                  </Box>
+                )}
               </Card>
             </Grid>
           ))}
@@ -137,7 +256,6 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
                     flexDirection: "row",
                     justifyContent: "space-evenly",
                     alignItems: "center",
-                    "&>*:first-child": { flexShrink: 0 },
                   }}
                 >
                   {ctx.playOrder.map(
@@ -150,6 +268,7 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
                             height: 24,
                             borderRadius: "50%",
                             backgroundColor: COLORS[index],
+                            ":first-of-type": { flexShrink: 0 },
                           }}
                         />
                       )
@@ -159,22 +278,35 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
             )
           )}
         </Stack>
+        {G.actionStage === "vote" &&
+          me.action === "vote" &&
+          Object.values(G.pub).every((p) => p.vote !== undefined) && (
+            <Stack sx={{ marginY: 1, alignItems: "center" }}>
+              <Button variant="contained" onClick={() => moves.voteConclude()}>
+                Next step
+              </Button>
+            </Stack>
+          )}
+        {G.stage === "conclude" &&
+          showScores &&
+          playerID === me.outlierInSight && (
+            <Stack sx={{ marginY: 1, alignItems: "center" }}>
+              <Button variant="contained" onClick={() => moves.nextRound()}>
+                Next step
+              </Button>
+            </Stack>
+          )}
         <Stack
           direction="row"
           sx={{ justifyContent: "center", "&>*:last-child": { flexShrink: 0 } }}
         >
           {me.hand.map((card, i) => (
-            <Card key={i} variant="outlined">
-              <CardActionArea>
-                <PersonIcon
-                  sx={{
-                    color: COLORS[card],
-                    fontSize: 72,
-                    margin: "24px 12px",
-                  }}
-                />
-              </CardActionArea>
-            </Card>
+            <GameCard
+              key={i}
+              card={card}
+              selected={selectedCards.includes(i)}
+              onClick={() => handleClickCard(i)}
+            />
           ))}
         </Stack>
       </Stack>
@@ -190,23 +322,19 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
             "&>*:last-child": { flexShrink: 0 },
           }}
         >
-          {me.hand.map((card, i) => (
-            <Card key={i} variant="outlined">
-              <CardActionArea>
-                <PersonIcon
-                  sx={{
-                    color: COLORS[card],
-                    fontSize: 72,
-                    margin: "24px 12px",
-                  }}
-                />
-              </CardActionArea>
-            </Card>
+          {(me.handInSight ?? []).map((card, i) => (
+            <GameCard
+              key={i}
+              card={card}
+              onClick={() => handleClickOthersCard(i)}
+            />
           ))}
         </Stack>
-        <DialogActions>
-          <Button onClick={() => moves.monitorConclude()}>Next step</Button>
-        </DialogActions>
+        {G.actionStage === "monitor" && (
+          <DialogActions>
+            <Button onClick={() => moves.monitorConclude()}>Next step</Button>
+          </DialogActions>
+        )}
       </Dialog>
     </Container>
   );
