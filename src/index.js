@@ -5,7 +5,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 const router = createBrowserRouter([
   { path: "/dixit", lazy: () => import("./dixit") },
   { path: "/just-chat", lazy: () => import("./just-chat") },
-  { path: "/outlier", lazy: () => import("./outlier") },
+  { path: "/outliar", lazy: () => import("./outliar") },
 ]);
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

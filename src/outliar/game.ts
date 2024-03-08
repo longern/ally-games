@@ -7,7 +7,7 @@ export type GameState = {
   actionStage: GameAction | "trade-response" | undefined;
   secret: {
     vault: number[];
-    realOutlier: string;
+    realOutliar: string;
   };
   players: Record<
     string,
@@ -16,7 +16,7 @@ export type GameState = {
       handInSight: number[] | undefined;
       faceDown: number[];
       action: GameAction;
-      outlierInSight: string;
+      outliarInSight: string;
       vote: number | undefined;
     }
   >;
@@ -37,19 +37,19 @@ export type GameState = {
 };
 
 function init({ ctx }: { ctx: Ctx }) {
-  const realOutlier = ctx.playOrder[Math.floor(Math.random() * ctx.numPlayers)];
+  const realOutliar = ctx.playOrder[Math.floor(Math.random() * ctx.numPlayers)];
   const players = {};
   const pub = {};
   ctx.playOrder.forEach((playerID) => {
     players[playerID] = { faceDown: [] };
     pub[playerID] = { score: 0, faceDownCount: 0 };
-    if (playerID !== realOutlier)
-      players[playerID].outlierInSight = realOutlier;
+    if (playerID !== realOutliar)
+      players[playerID].outliarInSight = realOutliar;
     else {
       const randomInt = Math.floor(Math.random() * (ctx.numPlayers - 1));
       const randomIndex =
         ctx.playOrder[randomInt] === playerID ? ctx.numPlayers - 1 : randomInt;
-      players[playerID].outlierInSight = ctx.playOrder[randomIndex];
+      players[playerID].outliarInSight = ctx.playOrder[randomIndex];
     }
   });
 
@@ -80,7 +80,7 @@ function init({ ctx }: { ctx: Ctx }) {
   return {
     stage: "decide",
     actionStage: undefined,
-    secret: { vault, realOutlier },
+    secret: { vault, realOutliar },
     players,
     pub,
     targets: {},
@@ -115,19 +115,19 @@ function nextAction({ G }: { G: GameState }) {
 
 function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
   G.stage = "conclude";
-  G.players[G.secret.realOutlier].outlierInSight = G.secret.realOutlier;
+  G.players[G.secret.realOutliar].outliarInSight = G.secret.realOutliar;
   const numPlayers = Object.keys(G.players).length;
 
   if (Object.values(G.pub).some((player) => player.action === "emergency")) {
     const falseEmergency = Object.entries(G.players).filter(
       ([id, player]) =>
-        player.action === "emergency" && id !== G.secret.realOutlier
+        player.action === "emergency" && id !== G.secret.realOutliar
     );
     const punish = Math.ceil((numPlayers - 1) / falseEmergency.length);
     const extra =
       (G.extra || 0) + (punish * falseEmergency.length - (numPlayers - 1));
     Object.keys(G.players).forEach((id) => {
-      if (G.secret.realOutlier === id) {
+      if (G.secret.realOutliar === id) {
         G.pub[id].roundScore = numPlayers - 1;
       } else {
         if (!falseEmergency.length) G.pub[id].roundScore = -1;
@@ -151,9 +151,9 @@ function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
     const [maxVoteCard] = Array.from(voteCounts.entries()).find(
       ([, count]) => count === maxVotes
     );
-    if (ctx.playOrder[maxVoteCard] === G.secret.realOutlier) {
+    if (ctx.playOrder[maxVoteCard] === G.secret.realOutliar) {
       Object.keys(G.players).forEach((id) => {
-        if (G.secret.realOutlier === id) {
+        if (G.secret.realOutliar === id) {
           G.pub[id].roundScore = -(numPlayers - 1);
         } else {
           G.pub[id].roundScore = 1;
@@ -161,7 +161,7 @@ function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
       });
     } else {
       Object.keys(G.players).forEach((id) => {
-        if (G.secret.realOutlier === id) {
+        if (G.secret.realOutliar === id) {
           G.pub[id].roundScore = numPlayers - 1;
         } else {
           G.pub[id].roundScore = -1;

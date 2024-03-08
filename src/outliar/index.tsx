@@ -72,7 +72,7 @@ function GameCard({
   );
 }
 
-type OutlierBoardProps = Partial<
+type OutliarBoardProps = Partial<
   Parameters<GameBoardComponent<typeof game>>[0]
 >;
 
@@ -81,7 +81,7 @@ function GameHint({
   moves,
   playerID,
   showScores,
-}: OutlierBoardProps & { showScores: boolean }) {
+}: OutliarBoardProps & { showScores: boolean }) {
   const me = G.players[playerID];
   return G.actionStage === "vote"
     ? me.action === "vote" &&
@@ -92,7 +92,7 @@ function GameHint({
         )
     : G.stage === "conclude"
     ? showScores &&
-      (playerID === me.outlierInSight ? (
+      (playerID === me.outliarInSight ? (
         <Button variant="contained" onClick={() => moves.nextRound()}>
           Next step
         </Button>
@@ -108,7 +108,7 @@ function PlayerGrid({
   moves,
   playerID,
   showScores,
-}: OutlierBoardProps & { showScores: boolean }) {
+}: OutliarBoardProps & { showScores: boolean }) {
   const me = G.players[playerID];
 
   const handleClickAvatar = (id: string) => {
@@ -164,7 +164,7 @@ function PlayerGrid({
                 </Avatar>
                 <Box
                   sx={{
-                    color: me.outlierInSight === id ? "red" : undefined,
+                    color: me.outliarInSight === id ? "red" : undefined,
                   }}
                 >
                   {ctx.playerNames[id] ?? id}
