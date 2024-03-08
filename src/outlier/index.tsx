@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import CrisisAlertIcon from "@mui/icons-material/CrisisAlert";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import PersonIcon from "@mui/icons-material/Person";
 import StorageIcon from "@mui/icons-material/Storage";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -49,8 +50,10 @@ function GameCard({
 }) {
   return (
     <Card
-      variant="outlined"
-      sx={{ transform: selected ? "translateY(-20%)" : undefined }}
+      sx={{
+        transform: selected ? "translateY(-20%)" : undefined,
+        transition: "transform 0.2s",
+      }}
     >
       <CardActionArea onClick={onClick}>
         <PersonIcon
@@ -69,24 +72,44 @@ function GameCard({
   );
 }
 
-export const GameBoard: GameBoardComponent<typeof game> = ({
+type OutlierBoardProps = Partial<
+  Parameters<GameBoardComponent<typeof game>>[0]
+>;
+
+function GameHint({
+  G,
+  moves,
+  playerID,
+  showScores,
+}: OutlierBoardProps & { showScores: boolean }) {
+  const me = G.players[playerID];
+  return G.actionStage === "vote"
+    ? me.action === "vote" &&
+        Object.values(G.pub).every((p) => p.vote !== undefined) && (
+          <Button variant="contained" onClick={() => moves.voteConclude()}>
+            Next step
+          </Button>
+        )
+    : G.stage === "conclude"
+    ? showScores &&
+      (playerID === me.outlierInSight ? (
+        <Button variant="contained" onClick={() => moves.nextRound()}>
+          Next step
+        </Button>
+      ) : (
+        "Waiting for next round..."
+      ))
+    : null;
+}
+
+function PlayerGrid({
   G,
   ctx,
   moves,
   playerID,
-}) => {
-  const [selectedCards, setSelectedCards] = useState<number[]>([]);
-  const [showScores, setShowScores] = useState(false);
-
+  showScores,
+}: OutlierBoardProps & { showScores: boolean }) {
   const me = G.players[playerID];
-
-  const actionIcons = {
-    emergency: <CrisisAlertIcon fontSize="large" />,
-    vote: <HowToVoteIcon fontSize="large" />,
-    monitor: <VideocamIcon fontSize="large" />,
-    trade: <SwapHorizIcon fontSize="large" />,
-    vault: <StorageIcon fontSize="large" />,
-  } as Record<GameAction, React.ReactNode>;
 
   const handleClickAvatar = (id: string) => {
     if (G.stage !== "action") return;
@@ -109,6 +132,90 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
         break;
     }
   };
+
+  return (
+    <Grid container sx={{ paddingY: 2 }}>
+      {ctx.playOrder.map((id, index) => (
+        <Grid
+          item
+          key={id}
+          xs={4}
+          md={3}
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <Card
+            elevation={G.targets[playerID] === id ? 8 : 0}
+            sx={{ background: "none", position: "relative" }}
+          >
+            <CardActionArea onClick={() => handleClickAvatar(id)}>
+              <Stack
+                spacing={1}
+                sx={{
+                  margin: 2,
+                  flexDirection: "column",
+                  alignItems: "center",
+                }}
+              >
+                <Avatar sx={{ bgcolor: COLORS[index] }}>
+                  <PersonIcon />
+                </Avatar>
+                <Box
+                  sx={{
+                    color: me.outlierInSight === id ? "red" : undefined,
+                  }}
+                >
+                  {ctx.playerNames[id] ?? id}
+                  {": "}
+                  {G.pub[id].score}
+                  {showScores && (
+                    <>
+                      {G.pub[id].roundScore >= 0 ? "+" : ""}
+                      {G.pub[id].roundScore}
+                    </>
+                  )}
+                </Box>
+              </Stack>
+            </CardActionArea>
+            {G.pub[id].vote !== undefined && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  left: 10,
+                  bottom: -10,
+                  transform: "scale(0.35)",
+                }}
+              >
+                <GameCard card={G.pub[id].vote} />
+              </Box>
+            )}
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+}
+
+const GameBoard: GameBoardComponent<typeof game> = ({
+  G,
+  ctx,
+  moves,
+  playerID,
+}) => {
+  const [selectedCards, setSelectedCards] = useState<number[]>([]);
+  const [showScores, setShowScores] = useState(false);
+
+  const me = G.players[playerID];
+
+  const actionIcons = {
+    emergency: <CrisisAlertIcon fontSize="large" />,
+    vote: <HowToVoteIcon fontSize="large" />,
+    monitor: <VideocamIcon fontSize="large" />,
+    trade: <SwapHorizIcon fontSize="large" />,
+    vault: <StorageIcon fontSize="large" />,
+  } as Record<GameAction, React.ReactNode>;
 
   const handleClickCard = (index: number) => {
     if (G.stage !== "action") return;
@@ -141,7 +248,7 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
           : [...selectedCards, index];
         setSelectedCards(nextSelectedCards);
         if (nextSelectedCards.length === responsesRequired) {
-          moves.tradePickResponse(nextSelectedCards.map((i) => me.hand[i]));
+          moves.tradePickResponse(nextSelectedCards);
           setSelectedCards([]);
         }
         break;
@@ -168,71 +275,16 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
   }, [G.stage]);
 
   return (
-    <Container maxWidth="md" sx={{ height: "100%" }}>
+    <Container maxWidth="md" sx={{ height: "100%", padding: 1 }}>
       <Stack sx={{ height: "100%" }}>
-        <Grid container sx={{ paddingY: 2 }}>
-          {ctx.playOrder.map((id, index) => (
-            <Grid
-              item
-              key={id}
-              xs={4}
-              md={3}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <Card
-                elevation={0}
-                sx={{ background: "none", position: "relative" }}
-              >
-                <CardActionArea onClick={() => handleClickAvatar(id)}>
-                  <Stack
-                    spacing={1}
-                    sx={{
-                      margin: 2,
-                      flexDirection: "column",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Avatar sx={{ bgcolor: COLORS[index] }}>
-                      <PersonIcon />
-                    </Avatar>
-                    <Box
-                      sx={{
-                        color: me.outlierInSight === id ? "red" : undefined,
-                      }}
-                    >
-                      {ctx.playerNames[id] ?? id}
-                      {": "}
-                      {G.pub[id].score}
-                      {showScores && (
-                        <>
-                          {G.pub[id].roundScore >= 0 ? "+" : ""}
-                          {G.pub[id].roundScore}
-                        </>
-                      )}
-                    </Box>
-                  </Stack>
-                </CardActionArea>
-                {G.pub[id].vote !== undefined && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      left: 10,
-                      bottom: -10,
-                      transform: "scale(0.35)",
-                    }}
-                  >
-                    <GameCard card={G.pub[id].vote} />
-                  </Box>
-                )}
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        <PlayerGrid
+          G={G}
+          ctx={ctx}
+          moves={moves}
+          playerID={playerID}
+          showScores={showScores}
+        />
         <Stack
-          spacing={2}
           sx={{
             flexGrow: 1,
             alignSelf: "center",
@@ -242,7 +294,11 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
         >
           {Object.entries(actionIcons).map(
             ([action, icon]: [GameAction, React.ReactNode]) => (
-              <Stack key={action} direction="row">
+              <Stack
+                key={action}
+                direction="row"
+                sx={{ padding: 1, position: "relative" }}
+              >
                 {icon}
                 <Stack
                   sx={{
@@ -269,28 +325,44 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
                       )
                   )}
                 </Stack>
+                {action === "emergency" && G.actionStage !== undefined && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      height: "100%",
+                      transform: `translate(-100%, ${
+                        [
+                          "emergency",
+                          "vote",
+                          "monitor",
+                          "trade",
+                          "vault",
+                        ].indexOf(G.actionStage.split("-")[0]) * 100
+                      }%)`,
+                      transition: "transform 0.2s",
+                    }}
+                  >
+                    <NavigateNextIcon fontSize="large" />
+                  </Box>
+                )}
               </Stack>
             )
           )}
         </Stack>
-        {G.actionStage === "vote" &&
-          me.action === "vote" &&
-          Object.values(G.pub).every((p) => p.vote !== undefined) && (
-            <Stack sx={{ marginY: 1, alignItems: "center" }}>
-              <Button variant="contained" onClick={() => moves.voteConclude()}>
-                Next step
-              </Button>
-            </Stack>
-          )}
-        {G.stage === "conclude" &&
-          showScores &&
-          playerID === me.outlierInSight && (
-            <Stack sx={{ marginY: 1, alignItems: "center" }}>
-              <Button variant="contained" onClick={() => moves.nextRound()}>
-                Next step
-              </Button>
-            </Stack>
-          )}
+        <Stack
+          sx={{
+            height: "48px",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <GameHint
+            G={G}
+            moves={moves}
+            playerID={playerID}
+            showScores={showScores}
+          />
+        </Stack>
         <Stack
           direction="row"
           sx={{ justifyContent: "center", "&>*:last-child": { flexShrink: 0 } }}
@@ -350,7 +422,7 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
         </Stack>
         {G.actionStage === "monitor" && (
           <DialogActions>
-            <Button onClick={() => moves.monitorConclude()}>Next step</Button>
+            <Button onClick={() => moves.monitorConclude()}>OK</Button>
           </DialogActions>
         )}
       </Dialog>

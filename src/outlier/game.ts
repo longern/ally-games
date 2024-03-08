@@ -99,8 +99,10 @@ function nextAction({ G }: { G: GameState }) {
     );
 
   G.targets = {};
-  if (nextAction) G.actionStage = nextAction;
-  else {
+  if (nextAction) {
+    G.actionStage = nextAction;
+    G.targets = {};
+  } else {
     G.stage = "decide";
     Object.keys(G.players).forEach((id) => {
       G.players[id].action = undefined;
@@ -404,7 +406,6 @@ const game = makeGame({
         return;
 
       const picked = me.hand.splice(me.hand.indexOf(card), 1)[0];
-
       me.faceDown = [picked];
       G.pub[playerID].faceDownCount = 1;
 
@@ -419,14 +420,15 @@ const game = makeGame({
         G.actionStage = "trade-response";
     },
 
-    tradePickResponse({ G, ctx, playerID }, cards: number[]) {
+    tradePickResponse({ G, ctx, playerID }, cardIndexes: number[]) {
       if (G.stage !== "action" || G.actionStage !== "trade-response") return;
 
+      const me = G.players[playerID];
       if (
-        cards.some((card) => ctx.playOrder[card] !== playerID) &&
-        G.players[playerID].hand.some(
-          (card) => ctx.playOrder[card] === playerID
-        )
+        cardIndexes.some((i) => ctx.playOrder[me.hand[i]] !== playerID) &&
+        G.players[playerID].hand
+          .filter((_, i) => !cardIndexes.includes(i))
+          .some((card) => ctx.playOrder[card] === playerID)
       )
         return;
 
@@ -434,12 +436,11 @@ const game = makeGame({
         ([id, player]) =>
           player.action === "trade" && G.targets[id] === playerID
       );
-      if (cards.length !== sourcePlayers.length) return;
+      if (cardIndexes.length !== sourcePlayers.length) return;
 
-      const me = G.players[playerID];
       const responses = [];
-      for (const card of cards) {
-        const response = me.hand.splice(me.hand.indexOf(card), 1)[0];
+      for (const index of cardIndexes.toReversed()) {
+        const [response] = me.hand.splice(index, 1);
         const randomIndex = Math.floor(Math.random() * (responses.length + 1));
         responses.splice(randomIndex, 0, response);
       }
@@ -454,6 +455,7 @@ const game = makeGame({
         );
         player.faceDown = [];
         G.pub[id].faceDownCount = 0;
+        G.targets[id] = undefined;
       });
 
       if (Object.values(G.pub).every((player) => player.faceDownCount === 0)) {
