@@ -115,6 +115,7 @@ function nextAction({ G }: { G: GameState }) {
 
 function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
   G.stage = "conclude";
+  G.actionStage = undefined;
   G.players[G.secret.realOutliar].outliarInSight = G.secret.realOutliar;
   const numPlayers = Object.keys(G.players).length;
 
@@ -141,9 +142,7 @@ function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
   } else {
     const voteCounts = Object.values(G.pub).reduce((acc, { vote }) => {
       if (vote === -2)
-        new Array(numPlayers).forEach((_, i) => {
-          acc.set(i, (acc.get(i) || 0) + 1);
-        });
+        for (let i = 0; i < numPlayers; i++) acc.set(i, (acc.get(i) || 0) + 1);
       else if (vote !== -1) acc.set(vote, (acc.get(vote) || 0) + 1);
       return acc;
     }, new Map<number, number>());
@@ -285,16 +284,16 @@ const game = makeGame({
       nextAction({ G });
     },
 
-    vote({ G, ctx, playerID }, card: number) {
+    vote({ G, ctx, playerID }, cardIndex: number) {
       if (
         G.stage !== "action" ||
         G.actionStage !== "vote" ||
         Object.values(G.players).filter((player) => player.action === "vote")
-          .length < 2 ||
-        !G.players[playerID].hand.includes(card)
+          .length < 2
       )
         return;
 
+      const card = G.players[playerID].hand[cardIndex];
       G.players[playerID].vote = card;
 
       if (!ctx.playOrder.every((id) => G.players[id].vote !== undefined)) {
@@ -311,9 +310,8 @@ const game = makeGame({
 
       const voteCounts = Object.values(G.pub).reduce((acc, { vote }) => {
         if (vote === -2)
-          new Array(ctx.numPlayers).forEach((_, i) => {
+          for (let i = 0; i < ctx.numPlayers; i++)
             acc.set(i, (acc.get(i) || 0) + 1);
-          });
         else if (vote !== -1) acc.set(vote, (acc.get(vote) || 0) + 1);
         return acc;
       }, new Map<number, number>());

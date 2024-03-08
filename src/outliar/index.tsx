@@ -94,7 +94,7 @@ function GameHint({
     ? showScores &&
       (playerID === me.outliarInSight ? (
         <Button variant="contained" onClick={() => moves.nextRound()}>
-          Next step
+          Next round
         </Button>
       ) : (
         "Waiting for next round..."
@@ -230,7 +230,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
           )
         )
           moves.forcedTradePickCard(card);
-        else moves.vote(card);
+        else moves.vote(index);
         break;
       case "trade":
         moves.tradePickCard(card);
@@ -273,6 +273,8 @@ const GameBoard: GameBoardComponent<typeof game> = ({
       setShowScores(false);
     };
   }, [G.stage]);
+
+  if (process.env.NODE_ENV === "development") console.log(G);
 
   return (
     <Container maxWidth="md" sx={{ height: "100%", padding: 1 }}>
