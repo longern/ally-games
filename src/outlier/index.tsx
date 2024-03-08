@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardActionArea,
+  CardMedia,
   Container,
   Dialog,
   DialogActions,
@@ -231,6 +232,7 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
           ))}
         </Grid>
         <Stack
+          spacing={2}
           sx={{
             flexGrow: 1,
             alignSelf: "center",
@@ -241,14 +243,7 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
           {Object.entries(actionIcons).map(
             ([action, icon]: [GameAction, React.ReactNode]) => (
               <Stack key={action} direction="row">
-                <Button
-                  sx={{
-                    color: me.action === action ? "primary.main" : "inherit",
-                  }}
-                  onClick={() => moves.decideAction(action)}
-                >
-                  {icon}
-                </Button>
+                {icon}
                 <Stack
                   sx={{
                     flexGrow: 1,
@@ -310,6 +305,29 @@ export const GameBoard: GameBoardComponent<typeof game> = ({
           ))}
         </Stack>
       </Stack>
+
+      <Dialog open={G.stage === "decide"}>
+        <DialogTitle>Determine the action</DialogTitle>
+        <Grid container spacing={2} sx={{ padding: 2 }}>
+          {Object.entries(actionIcons).map(
+            ([action, icon]: [GameAction, React.ReactNode]) => (
+              <Grid item key={action} xs={4}>
+                <Card elevation={me.action === action ? 8 : 0}>
+                  <CardActionArea
+                    disabled={me.action !== undefined}
+                    onClick={() => moves.decideAction(action)}
+                    sx={{ textAlign: "center", paddingY: 2 }}
+                  >
+                    <CardMedia>{icon}</CardMedia>
+                    {action[0].toUpperCase() + action.slice(1)}
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            )
+          )}
+        </Grid>
+      </Dialog>
+
       <Dialog open={me.handInSight !== undefined}>
         <DialogTitle>
           Hand of {ctx.playerNames[G.targets[playerID]] ?? G.targets[playerID]}
