@@ -120,25 +120,28 @@ function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
   const numPlayers = Object.keys(G.players).length;
 
   if (Object.values(G.pub).some((player) => player.action === "emergency")) {
+    G.pub[G.secret.realOutliar].roundScore = numPlayers - 1;
     const falseEmergency = Object.entries(G.players).filter(
       ([id, player]) =>
         player.action === "emergency" && id !== G.secret.realOutliar
     );
-    const punish = Math.ceil((numPlayers - 1) / falseEmergency.length);
-    const extra =
-      (G.extra || 0) + (punish * falseEmergency.length - (numPlayers - 1));
-    Object.keys(G.players).forEach((id) => {
-      if (G.secret.realOutliar === id) {
-        G.pub[id].roundScore = numPlayers - 1;
-      } else {
-        if (!falseEmergency.length) G.pub[id].roundScore = -1;
-        else if (G.players[id].action !== "emergency") G.pub[id].roundScore = 0;
-        else {
-          G.pub[id].roundScore = -punish;
+    if (!falseEmergency.length) {
+      Object.keys(G.players).forEach((id) => {
+        if (id !== G.secret.realOutliar) {
+          G.pub[id].roundScore = -1;
         }
-      }
-    });
-    G.extra = extra;
+      });
+    } else {
+      const punish = Math.ceil((numPlayers - 1) / falseEmergency.length);
+      Object.keys(G.players).forEach((id) => {
+        if (id !== G.secret.realOutliar) {
+          G.pub[id].roundScore =
+            G.players[id].action !== "emergency" ? 0 : -punish;
+        }
+      });
+      G.extra =
+        (G.extra || 0) + (punish * falseEmergency.length - (numPlayers - 1));
+    }
   } else {
     const voteCounts = Object.values(G.pub).reduce((acc, { vote }) => {
       if (vote === -2)
@@ -152,7 +155,7 @@ function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
     );
     if (ctx.playOrder[maxVoteCard] === G.secret.realOutliar) {
       Object.keys(G.players).forEach((id) => {
-        if (G.secret.realOutliar === id) {
+        if (id === G.secret.realOutliar) {
           G.pub[id].roundScore = -(numPlayers - 1);
         } else {
           G.pub[id].roundScore = 1;
@@ -160,7 +163,7 @@ function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
       });
     } else {
       Object.keys(G.players).forEach((id) => {
-        if (G.secret.realOutliar === id) {
+        if (id === G.secret.realOutliar) {
           G.pub[id].roundScore = numPlayers - 1;
         } else {
           G.pub[id].roundScore = -1;
