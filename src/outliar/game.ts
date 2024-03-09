@@ -33,8 +33,14 @@ export type GameState = {
     }
   >;
   targets: Record<string, string>;
+  winner: "outliar" | "ally" | null;
   extra: number | undefined;
 };
+
+function insort<T>(array: T[], value: T) {
+  const insertIndex = array.findLastIndex((item) => item <= value) + 1;
+  array.splice(insertIndex, 0, value);
+}
 
 function init({ ctx }: { ctx: Ctx }) {
   const realOutliar = ctx.playOrder[Math.floor(Math.random() * ctx.numPlayers)];
@@ -84,6 +90,7 @@ function init({ ctx }: { ctx: Ctx }) {
     players,
     pub,
     targets: {},
+    winner: null,
   } as GameState;
 }
 
@@ -113,7 +120,7 @@ function nextAction({ G }: { G: GameState }) {
   }
 }
 
-function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
+function conclude({ G }: { G: GameState }) {
   G.stage = "conclude";
   G.actionStage = undefined;
   G.players[G.secret.realOutliar].outliarInSight = G.secret.realOutliar;
@@ -143,31 +150,15 @@ function conclude({ G, ctx }: { G: GameState; ctx: Ctx }) {
         (G.extra || 0) + (punish * falseEmergency.length - (numPlayers - 1));
     }
   } else {
-    const voteCounts = Object.values(G.pub).reduce((acc, { vote }) => {
-      if (vote === -2)
-        for (let i = 0; i < numPlayers; i++) acc.set(i, (acc.get(i) || 0) + 1);
-      else if (vote !== -1) acc.set(vote, (acc.get(vote) || 0) + 1);
-      return acc;
-    }, new Map<number, number>());
-    const maxVotes = Math.max(...voteCounts.values());
-    const [maxVoteCard] = Array.from(voteCounts.entries()).find(
-      ([, count]) => count === maxVotes
-    );
-    if (ctx.playOrder[maxVoteCard] === G.secret.realOutliar) {
+    if (G.winner === "outliar") {
       Object.keys(G.players).forEach((id) => {
-        if (id === G.secret.realOutliar) {
-          G.pub[id].roundScore = -(numPlayers - 1);
-        } else {
-          G.pub[id].roundScore = 1;
-        }
+        G.pub[id].roundScore =
+          id === G.secret.realOutliar ? numPlayers - 1 : -1;
       });
     } else {
       Object.keys(G.players).forEach((id) => {
-        if (id === G.secret.realOutliar) {
-          G.pub[id].roundScore = numPlayers - 1;
-        } else {
-          G.pub[id].roundScore = -1;
-        }
+        G.pub[id].roundScore =
+          id === G.secret.realOutliar ? -(numPlayers - 1) : 1;
       });
     }
   }
@@ -198,7 +189,8 @@ const game = makeGame({
       });
 
       if (ctx.playOrder.some((id) => G.pub[id].action === "emergency")) {
-        conclude({ G, ctx });
+        G.winner = "outliar";
+        conclude({ G });
       } else {
         G.stage = "action";
         nextAction({ G });
@@ -269,18 +261,9 @@ const game = makeGame({
 
       const me = G.players[playerID];
       const target = G.players[G.targets[playerID]];
-      const theirCard = me.faceDown[0];
-      const giveaway = me.hand.splice(me.hand.indexOf(yourCard), 1)[0];
-      target.hand.splice(
-        target.hand.findLastIndex((card) => card <= theirCard) + 1,
-        0,
-        giveaway
-      );
-      me.hand.splice(
-        me.hand.findLastIndex((card) => card <= theirCard) + 1,
-        0,
-        theirCard
-      );
+      me.hand.splice(me.hand.indexOf(yourCard), 1)[0];
+      insort(target.hand, yourCard);
+      insort(me.hand, me.faceDown[0]);
       me.faceDown = [];
       G.pub[playerID].faceDownCount = 0;
 
@@ -325,7 +308,14 @@ const game = makeGame({
         Array.from(voteCounts.values()).filter((count) => count === maxVotes)
           .length === 1
       ) {
-        conclude({ G, ctx });
+        const [maxVoteCard] = Array.from(voteCounts.entries()).find(
+          ([, count]) => count === maxVotes
+        );
+        G.winner =
+          ctx.playOrder[maxVoteCard] === G.secret.realOutliar
+            ? "ally"
+            : "outliar";
+        conclude({ G });
         return;
       }
 
@@ -446,14 +436,8 @@ const game = makeGame({
         responses.splice(randomIndex, 0, response);
       }
       sourcePlayers.forEach(([id, player], index) => {
-        const insertIndex =
-          player.hand.findLastIndex((card) => card <= responses[index]) + 1;
-        player.hand.splice(insertIndex, 0, responses[index]);
-        me.hand.splice(
-          me.hand.findLastIndex((card) => card <= player.faceDown[0]) + 1,
-          0,
-          player.faceDown[0]
-        );
+        insort(player.hand, responses[index]);
+        insort(me.hand, player.faceDown[0]);
         player.faceDown = [];
         G.pub[id].faceDownCount = 0;
         G.targets[id] = undefined;
@@ -485,11 +469,7 @@ const game = makeGame({
       const giveaway = me.hand.splice(me.hand.indexOf(card), 1)[0];
       const randomIndex = Math.floor(Math.random() * G.secret.vault.length);
       const receive = G.secret.vault[randomIndex];
-      me.hand.splice(
-        me.hand.findLastIndex((card) => card <= receive) + 1,
-        0,
-        receive
-      );
+      insort(me.hand, receive);
       G.secret.vault.splice(randomIndex, 1, giveaway);
       G.pub[playerID].done = true;
 
