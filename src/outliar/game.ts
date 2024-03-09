@@ -1,6 +1,6 @@
 import { Ctx, makeGame } from "../Client";
 
-export type GameAction = "emergency" | "vote" | "monitor" | "trade" | "vault";
+export type GameAction = "emergency" | "vote" | "videocam" | "trade" | "vault";
 
 export type GameState = {
   stage: "decide" | "action" | "conclude";
@@ -88,7 +88,7 @@ function init({ ctx }: { ctx: Ctx }) {
 }
 
 function nextAction({ G }: { G: GameState }) {
-  const actions: GameAction[] = ["vote", "monitor", "trade", "vault"];
+  const actions: GameAction[] = ["vote", "videocam", "trade", "vault"];
   const currentIndex = actions.findIndex((action) =>
     G.actionStage?.startsWith(action)
   );
@@ -338,11 +338,11 @@ const game = makeGame({
       nextAction({ G });
     },
 
-    monitor({ G, ctx, playerID }, target: string) {
+    videocam({ G, ctx, playerID }, target: string) {
       if (
         G.stage !== "action" ||
-        G.actionStage !== "monitor" ||
-        G.players[playerID].action !== "monitor" ||
+        G.actionStage !== "videocam" ||
+        G.players[playerID].action !== "videocam" ||
         playerID === target
       )
         return;
@@ -350,7 +350,7 @@ const game = makeGame({
       G.targets[playerID] = target;
 
       const playerMonitering = ctx.playOrder.filter(
-        (id) => G.players[id].action === "monitor"
+        (id) => G.players[id].action === "videocam"
       );
       if (playerMonitering.some((id) => G.targets[id] === undefined)) return;
 
@@ -359,11 +359,11 @@ const game = makeGame({
       });
     },
 
-    monitorConclude({ G, ctx, playerID }) {
+    videocamConclude({ G, ctx, playerID }) {
       if (
         G.stage !== "action" ||
-        G.actionStage !== "monitor" ||
-        G.players[playerID].action !== "monitor" ||
+        G.actionStage !== "videocam" ||
+        G.players[playerID].action !== "videocam" ||
         G.players[playerID].handInSight === undefined
       )
         return;

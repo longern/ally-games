@@ -124,8 +124,8 @@ function PlayerGrid({
         )
           moves.forcedTradePickPlayer(id);
         break;
-      case "monitor":
-        moves.monitor(id);
+      case "videocam":
+        moves.videocam(id);
         break;
       case "trade":
         moves.tradePickPlayer(id);
@@ -212,7 +212,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   const actionIcons = {
     emergency: <CrisisAlertIcon fontSize="large" />,
     vote: <HowToVoteIcon fontSize="large" />,
-    monitor: <VideocamIcon fontSize="large" />,
+    videocam: <VideocamIcon fontSize="large" />,
     trade: <SwapHorizIcon fontSize="large" />,
     vault: <StorageIcon fontSize="large" />,
   } as Record<GameAction, React.ReactNode>;
@@ -336,7 +336,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
                         [
                           "emergency",
                           "vote",
-                          "monitor",
+                          "videocam",
                           "trade",
                           "vault",
                         ].indexOf(G.actionStage.split("-")[0]) * 100
@@ -422,9 +422,9 @@ const GameBoard: GameBoardComponent<typeof game> = ({
             />
           ))}
         </Stack>
-        {G.actionStage === "monitor" && (
+        {G.actionStage === "videocam" && (
           <DialogActions>
-            <Button onClick={() => moves.monitorConclude()}>OK</Button>
+            <Button onClick={() => moves.videocamConclude()}>OK</Button>
           </DialogActions>
         )}
       </Dialog>
