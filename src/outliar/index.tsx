@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Avatar,
+  Badge,
   Box,
   Button,
   Card,
@@ -14,8 +15,10 @@ import {
   Grid,
   Stack,
 } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
 import CrisisAlertIcon from "@mui/icons-material/CrisisAlert";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import PersonIcon from "@mui/icons-material/Person";
 import StorageIcon from "@mui/icons-material/Storage";
@@ -154,9 +157,19 @@ function PlayerGrid({
                   alignItems: "center",
                 }}
               >
-                <Avatar sx={{ bgcolor: COLORS[index] }}>
-                  <PersonIcon />
-                </Avatar>
+                <Badge
+                  badgeContent={
+                    G.pub[id].done === undefined ? null : G.pub[id].done ? (
+                      <CheckIcon color="success" />
+                    ) : (
+                      <MoreHorizIcon />
+                    )
+                  }
+                >
+                  <Avatar sx={{ bgcolor: COLORS[index] }}>
+                    <PersonIcon />
+                  </Avatar>
+                </Badge>
                 <Box
                   sx={{
                     color: me.outliarInSight === id ? "red" : undefined,
@@ -373,15 +386,15 @@ const GameBoard: GameBoardComponent<typeof game> = ({
 
       <Dialog open={G.phase === "decide"}>
         <DialogTitle>Determine the action</DialogTitle>
-        <Grid container spacing={2} sx={{ padding: 2 }}>
+        <Grid container spacing={1} sx={{ paddingX: 2, paddingBottom: 2 }}>
           {Object.entries(actionIcons).map(
             ([action, icon]: [GameAction, React.ReactNode]) => (
               <Grid item key={action} xs={4}>
-                <Card elevation={me.action === action ? 8 : 0}>
+                <Card elevation={me.action === action ? 4 : 0}>
                   <CardActionArea
                     disabled={me.action !== undefined}
                     onClick={() => moves.decideAction(action)}
-                    sx={{ textAlign: "center", paddingY: 2 }}
+                    sx={{ textAlign: "center", paddingY: 1 }}
                   >
                     <CardMedia>{icon}</CardMedia>
                     {action[0].toUpperCase() + action.slice(1)}
