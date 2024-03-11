@@ -33,6 +33,14 @@ export type Game<
 > = {
   setup: ({ ctx }: { ctx: Ctx }) => GameState;
   moves: GameMoves;
+  phases?: Record<
+    string,
+    {
+      moves?: GameMoves;
+      onBegin?: GameMoveFunction<GameState>;
+      onEnd?: GameMoveFunction<GameState>;
+    }
+  >;
   playerView?: (props: {
     G: GameState;
     ctx: Ctx;
@@ -145,6 +153,32 @@ export function Client<T extends Game<any, any>>({
   );
 
   useEffect(() => {
+    if (!ctx?.isHost || gameState.phase === undefined) return;
+    setGameState(
+      produce<GameState>((G) => {
+        game.phases?.[gameState.phase]?.onBegin?.({
+          G,
+          ctx,
+          playerID,
+          sendChatMessage,
+        });
+      })
+    );
+    return () => {
+      setGameState(
+        produce<GameState>((G) => {
+          game.phases?.[gameState.phase]?.onEnd?.({
+            G,
+            ctx,
+            playerID,
+            sendChatMessage,
+          });
+        })
+      );
+    };
+  }, [ctx, game, gameState?.phase, playerID, sendChatMessage]);
+
+  useEffect(() => {
     socket.send(JSON.stringify({ type: "setup" }));
   }, [socket]);
 
@@ -159,6 +193,14 @@ export function Client<T extends Game<any, any>>({
         if (ctx.isHost) {
           const gameState = game.setup({ ctx });
           setGameState(gameState);
+          if (gameState.phase) {
+            game.phases?.[gameState.phase]?.onBegin?.({
+              G: gameState,
+              ctx,
+              playerID,
+              sendChatMessage,
+            });
+          }
         }
       } else if (message.type === "sync") {
         setGameState(message.state);
@@ -174,7 +216,9 @@ export function Client<T extends Game<any, any>>({
         const [func, ...args] = message.args;
         setGameState(
           produce<GameState>((G) => {
-            game.moves[func]({ G, ctx, playerID, sendChatMessage }, ...args);
+            const moves =
+              game.phases?.[G.phase]?.moves?.[func] ?? game.moves[func];
+            moves({ G, ctx, playerID, sendChatMessage }, ...args);
           })
         );
       } else if (message.type === "chat") {
@@ -205,10 +249,9 @@ export function Client<T extends Game<any, any>>({
               if (ctx.isHost)
                 setGameState(
                   produce<GameState>((G) => {
-                    game.moves[prop](
-                      { G, ctx, playerID, sendChatMessage },
-                      ...args
-                    );
+                    const moves =
+                      game.phases?.[G.phase]?.moves?.[prop] ?? game.moves[prop];
+                    moves({ G, ctx, playerID, sendChatMessage }, ...args);
                   })
                 );
               else

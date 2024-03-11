@@ -83,14 +83,14 @@ function GameHint({
   showScores,
 }: OutliarBoardProps & { showScores: boolean }) {
   const me = G.players[playerID];
-  return G.actionStage === "vote"
+  return G.phase === "vote"
     ? me.action === "vote" &&
         Object.values(G.pub).every((p) => p.vote !== undefined) && (
           <Button variant="contained" onClick={() => moves.voteConclude()}>
             Next step
           </Button>
         )
-    : G.stage === "conclude"
+    : G.phase === "conclude"
     ? showScores &&
       (playerID === me.outliarInSight ? (
         <Button variant="contained" onClick={() => moves.nextRound()}>
@@ -112,23 +112,18 @@ function PlayerGrid({
   const me = G.players[playerID];
 
   const handleClickAvatar = (id: string) => {
-    if (G.stage !== "action") return;
-    switch (G.actionStage) {
+    switch (G.phase) {
       case "vote":
-        if (
-          Object.entries(G.players).every(
-            ([id, player]) =>
-              (id === playerID && player.action === "vote") ||
-              player.action !== "vote"
-          )
-        )
-          moves.forcedTradePickPlayer(id);
+        moves.pickPlayer(id);
+        break;
+      case "forced-trade":
+        moves.pickPlayer(id);
         break;
       case "videocam":
-        moves.videocam(id);
+        moves.pickPlayer(id);
         break;
       case "trade":
-        moves.tradePickPlayer(id);
+        moves.pickPlayer(id);
         break;
     }
   };
@@ -218,22 +213,16 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   } as Record<GameAction, React.ReactNode>;
 
   const handleClickCard = (index: number) => {
-    if (G.stage !== "action") return;
     const card = me.hand[index];
-    switch (G.actionStage) {
+    switch (G.phase) {
       case "vote":
-        if (
-          Object.entries(G.players).every(
-            ([id, player]) =>
-              (id === playerID && player.action === "vote") ||
-              player.action !== "vote"
-          )
-        )
-          moves.forcedTradePickCard(card);
-        else moves.vote(index);
+        moves.vote(index);
+        break;
+      case "forced-trade":
+        moves.pickCard(card);
         break;
       case "trade":
-        moves.tradePickCard(card);
+        moves.pickCard(card);
         break;
       case "trade-response":
         const tradePlayers = ctx.playOrder.filter(
@@ -248,7 +237,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
           : [...selectedCards, index];
         setSelectedCards(nextSelectedCards);
         if (nextSelectedCards.length === responsesRequired) {
-          moves.tradePickResponse(nextSelectedCards);
+          moves.pickResponse(nextSelectedCards);
           setSelectedCards([]);
         }
         break;
@@ -259,22 +248,43 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   };
 
   const handleClickOthersCard = (index: number) => {
-    if (G.actionStage !== "vote") return;
+    if (G.phase !== "forced-trade") return;
     const card = me.handInSight![index];
-    moves.forcedTradePickOtherCard(card);
+    moves.pickOtherCard(card);
   };
 
   useEffect(() => {
-    if (G.stage !== "conclude") return;
+    if (G.phase !== "conclude") return;
     setTimeout(() => {
       setShowScores(true);
     }, 1000);
     return () => {
       setShowScores(false);
     };
-  }, [G.stage]);
+  }, [G.phase]);
 
   if (process.env.NODE_ENV === "development") console.log(G);
+
+  const currentActionIndex = [
+    ["emergency"],
+    ["vote", "forced-trade"],
+    ["videocam"],
+    ["trade", "trade-response"],
+    ["vault"],
+  ].findIndex((value) => value.includes(G.phase));
+  const ActionIndicator =
+    currentActionIndex === -1 ? null : (
+      <Box
+        sx={{
+          position: "absolute",
+          height: "100%",
+          transform: `translate(-100%, ${currentActionIndex * 100}%)`,
+          transition: "transform 0.2s",
+        }}
+      >
+        <NavigateNextIcon fontSize="large" />
+      </Box>
+    );
 
   return (
     <Container maxWidth="md" sx={{ height: "100%", padding: 1 }}>
@@ -295,7 +305,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
           }}
         >
           {Object.entries(actionIcons).map(
-            ([action, icon]: [GameAction, React.ReactNode]) => (
+            ([action, icon]: [GameAction, React.ReactNode], actionIndex) => (
               <Stack
                 key={action}
                 direction="row"
@@ -327,26 +337,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
                       )
                   )}
                 </Stack>
-                {action === "emergency" && G.actionStage !== undefined && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      height: "100%",
-                      transform: `translate(-100%, ${
-                        [
-                          "emergency",
-                          "vote",
-                          "videocam",
-                          "trade",
-                          "vault",
-                        ].indexOf(G.actionStage.split("-")[0]) * 100
-                      }%)`,
-                      transition: "transform 0.2s",
-                    }}
-                  >
-                    <NavigateNextIcon fontSize="large" />
-                  </Box>
-                )}
+                {actionIndex === 0 && ActionIndicator}
               </Stack>
             )
           )}
@@ -380,7 +371,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
         </Stack>
       </Stack>
 
-      <Dialog open={G.stage === "decide"}>
+      <Dialog open={G.phase === "decide"}>
         <DialogTitle>Determine the action</DialogTitle>
         <Grid container spacing={2} sx={{ padding: 2 }}>
           {Object.entries(actionIcons).map(
@@ -422,7 +413,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
             />
           ))}
         </Stack>
-        {G.actionStage === "videocam" && (
+        {G.phase === "videocam" && (
           <DialogActions>
             <Button onClick={() => moves.videocamConclude()}>OK</Button>
           </DialogActions>
