@@ -46,6 +46,9 @@ export type GameState = {
   extra: number | undefined;
 };
 
+const WILD_CARD = -2;
+const BLANK_CARD = -1;
+
 function insort<T>(array: T[], value: T) {
   const insertIndex = array.findLastIndex((item) => item <= value) + 1;
   array.splice(insertIndex, 0, value);
@@ -73,9 +76,9 @@ function init({ ctx }: { ctx: Ctx }) {
   });
 
   const deck = [
-    -2,
+    WILD_CARD,
     ...range(ctx.numPlayers).flatMap((i) => new Array(ctx.numPlayers).fill(i)),
-    ...new Array(ctx.numPlayers - 1).fill(-1),
+    ...new Array(ctx.numPlayers - 1).fill(BLANK_CARD),
   ];
 
   for (const playerID in players) {
@@ -190,7 +193,6 @@ const game = makeGame({
       onBegin({ G, ctx }) {
         if (ctx.playOrder.some((id) => G.pub[id].action === "emergency")) {
           G.phase = "conclude";
-          conclude({ G });
         } else {
           G.phase = "vote";
         }
@@ -232,10 +234,11 @@ const game = makeGame({
           Object.values(G.pub).forEach((player) => (player.done = undefined));
 
           const voteCounts = Object.values(G.pub).reduce((acc, { vote }) => {
-            if (vote === -2)
+            if (vote === WILD_CARD)
               for (let i = 0; i < ctx.numPlayers; i++)
                 acc.set(i, (acc.get(i) || 0) + 1);
-            else if (vote !== -1) acc.set(vote, (acc.get(vote) || 0) + 1);
+            else if (vote !== BLANK_CARD)
+              acc.set(vote, (acc.get(vote) || 0) + 1);
             return acc;
           }, new Map<number, number>());
 
@@ -253,7 +256,7 @@ const game = makeGame({
               ctx.playOrder[maxVoteCard] === G.secret.realOutliar
                 ? "ally"
                 : "outliar";
-            conclude({ G });
+            G.phase = "conclude";
             return;
           }
 
@@ -531,30 +534,36 @@ const game = makeGame({
         },
       },
     },
+
+    conclude: {
+      onBegin({ G }) {
+        conclude({ G });
+      },
+
+      moves: {
+        nextRound({ G, ctx }) {
+          ctx.playOrder.forEach((id) => {
+            G.pub[id].score +=
+              G.pub[id].roundScore || 0 + (G.extra >= ctx.numPlayers ? 1 : 0);
+            G.pub[id].roundScore = 0;
+            G.pub[id].action = undefined;
+            G.pub[id].vote = undefined;
+            G.pub[id].faceDownCount = 0;
+            G.pub[id].done = false;
+          });
+
+          if (G.extra >= ctx.numPlayers) G.extra -= ctx.numPlayers;
+
+          const { pub, extra, ...state } = init({ ctx });
+          Object.assign(G, state);
+        },
+      },
+    },
   },
 
   moves: {
     init({ G, ctx }) {
       Object.assign(G, init({ ctx }));
-    },
-
-    nextRound({ G, ctx }) {
-      if (G.phase !== "conclude") return;
-
-      ctx.playOrder.forEach((id) => {
-        G.pub[id].score +=
-          G.pub[id].roundScore || 0 + (G.extra >= ctx.numPlayers ? 1 : 0);
-        G.pub[id].roundScore = 0;
-        G.pub[id].action = undefined;
-        G.pub[id].vote = undefined;
-        G.pub[id].faceDownCount = 0;
-        G.pub[id].done = false;
-      });
-
-      if (G.extra >= ctx.numPlayers) G.extra -= ctx.numPlayers;
-
-      const { pub, extra, ...state } = init({ ctx });
-      Object.assign(G, state);
     },
   },
 
