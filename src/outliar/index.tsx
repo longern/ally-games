@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { I18nextProvider, useTranslation } from "react-i18next";
 import {
   Avatar,
   Badge,
@@ -28,6 +29,7 @@ import VideocamIcon from "@mui/icons-material/Videocam";
 import { Client, GameBoardComponent } from "../Client";
 import game, { GameAction } from "./game";
 import { ParentSocket } from "../ParentSocket";
+import i18n from "./i18n";
 
 const COLORS = [
   "#f44336",
@@ -85,24 +87,66 @@ function GameHint({
   playerID,
   showScores,
 }: OutliarBoardProps & { showScores: boolean }) {
+  const { t } = useTranslation();
+
   const me = G.players[playerID];
-  return G.phase === "vote"
-    ? me.action === "vote" &&
-        Object.values(G.pub).every((p) => p.vote !== undefined) && (
-          <Button variant="contained" onClick={() => moves.voteConclude()}>
-            Next step
-          </Button>
-        )
-    : G.phase === "conclude"
-    ? showScores &&
-      (playerID === me.outliarInSight ? (
-        <Button variant="contained" onClick={() => moves.nextRound()}>
-          Next round
-        </Button>
+  const waitingText = t("Waiting for other players...");
+  return G.phase === "vote" ? (
+    Object.values(G.pub).some((p) => p.vote === undefined) ? (
+      me.vote === undefined ? (
+        t("Choose a card")
       ) : (
-        "Waiting for next round..."
-      ))
-    : null;
+        waitingText
+      )
+    ) : (
+      <Button variant="contained" onClick={() => moves.voteConclude()}>
+        {t("Next step")}
+      </Button>
+    )
+  ) : G.phase === "forced-trade" ? (
+    me.action === "vote" ? (
+      G.targets[playerID] === undefined ? (
+        t("Choose a player")
+      ) : (
+        t("Choose a card")
+      )
+    ) : (
+      waitingText
+    )
+  ) : G.phase === "videocam" ? (
+    me.action === "videocam" && G.targets[playerID] === undefined ? (
+      t("Choose a player")
+    ) : (
+      me.handInSight === undefined && waitingText
+    )
+  ) : G.phase === "trade" ? (
+    me.action === "trade" ? (
+      G.targets[playerID] === undefined ? (
+        t("Choose a player")
+      ) : me.faceDown.length === 0 ? (
+        t("Choose a card")
+      ) : (
+        waitingText
+      )
+    ) : (
+      waitingText
+    )
+  ) : G.phase === "vault" ? (
+    me.action === "vault" && !G.pub[playerID].done ? (
+      t("Choose a card")
+    ) : (
+      waitingText
+    )
+  ) : G.phase === "conclude" ? (
+    showScores &&
+    (playerID === me.outliarInSight ? (
+      <Button variant="contained" onClick={() => moves.nextRound()}>
+        {t("Next round")}
+      </Button>
+    ) : (
+      t("Waiting for next round...")
+    ))
+  ) : null;
 }
 
 function PlayerGrid({
@@ -211,6 +255,8 @@ const GameBoard: GameBoardComponent<typeof game> = ({
 }) => {
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [showScores, setShowScores] = useState(false);
+
+  const { t } = useTranslation();
 
   const me = G.players[playerID];
 
@@ -382,7 +428,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
       </Stack>
 
       <Dialog open={G.phase === "decide"}>
-        <DialogTitle>Determine the action</DialogTitle>
+        <DialogTitle>{t("Choose an action")}</DialogTitle>
         <Grid container spacing={1} sx={{ paddingX: 2, paddingBottom: 2 }}>
           {Object.entries(actionIcons).map(
             ([action, icon]: [GameAction, React.ReactNode]) => (
@@ -394,7 +440,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
                     sx={{ textAlign: "center", paddingY: 1 }}
                   >
                     <CardMedia>{icon}</CardMedia>
-                    {action[0].toUpperCase() + action.slice(1)}
+                    {t(action[0].toUpperCase() + action.slice(1))}
                   </CardActionArea>
                 </Card>
               </Grid>
@@ -405,7 +451,9 @@ const GameBoard: GameBoardComponent<typeof game> = ({
 
       <Dialog open={me.handInSight !== undefined}>
         <DialogTitle>
-          Hand of {ctx.playerNames[G.targets[playerID]] ?? G.targets[playerID]}
+          {t("hand-of", {
+            player: ctx.playerNames[G.targets[playerID]] ?? G.targets[playerID],
+          })}
         </DialogTitle>
         <Stack
           direction="row"
@@ -457,9 +505,9 @@ export function Component() {
   const socket = useSocket();
 
   return (
-    <>
+    <I18nextProvider i18n={i18n}>
       {globalStyles}
       {socket && <Client game={game} board={GameBoard} socket={socket} />}
-    </>
+    </I18nextProvider>
   );
 }
