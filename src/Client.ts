@@ -152,27 +152,33 @@ export function Client<T extends Game<any, any>>({
     [ctx, playerID, socket]
   );
 
+  const executeMove = useCallback(
+    (playerID: string, func: string, ...args: any[]) => {
+      setGameState(
+        produce<GameState>((G) => {
+          const move =
+            game.phases?.[G.phase]?.moves?.[func] ?? game.moves[func];
+          move?.({ G, ctx, playerID, sendChatMessage }, ...args);
+        })
+      );
+    },
+    [game, ctx, sendChatMessage]
+  );
+
   useEffect(() => {
     if (!ctx?.isHost || gameState.phase === undefined) return;
+    const client = { ctx, playerID, sendChatMessage };
+    const phase = game.phases?.[gameState.phase];
+    if (!phase) return;
     setGameState(
       produce<GameState>((G) => {
-        game.phases?.[gameState.phase]?.onBegin?.({
-          G,
-          ctx,
-          playerID,
-          sendChatMessage,
-        });
+        phase?.onBegin?.({ G, ...client });
       })
     );
     return () => {
       setGameState(
         produce<GameState>((G) => {
-          game.phases?.[gameState.phase]?.onEnd?.({
-            G,
-            ctx,
-            playerID,
-            sendChatMessage,
-          });
+          phase?.onEnd?.({ G, ...client });
         })
       );
     };
@@ -193,14 +199,6 @@ export function Client<T extends Game<any, any>>({
         if (ctx.isHost) {
           const gameState = game.setup({ ctx });
           setGameState(gameState);
-          if (gameState.phase) {
-            game.phases?.[gameState.phase]?.onBegin?.({
-              G: gameState,
-              ctx,
-              playerID,
-              sendChatMessage,
-            });
-          }
         }
       } else if (message.type === "sync") {
         setGameState(message.state);
@@ -214,13 +212,7 @@ export function Client<T extends Game<any, any>>({
       } else if (message.type === "action") {
         const { playerID } = message;
         const [func, ...args] = message.args;
-        setGameState(
-          produce<GameState>((G) => {
-            const moves =
-              game.phases?.[G.phase]?.moves?.[func] ?? game.moves[func];
-            moves({ G, ctx, playerID, sendChatMessage }, ...args);
-          })
-        );
+        executeMove(playerID, func, ...args);
       } else if (message.type === "chat") {
         const { playerID } = message;
         setChatMessages((messages) => [
@@ -237,7 +229,7 @@ export function Client<T extends Game<any, any>>({
     return () => {
       socket.removeEventListener("message", handleMessage);
     };
-  }, [ctx, game, sendChatMessage, socket]);
+  }, [ctx, game, sendChatMessage, executeMove, socket]);
 
   const moves = useMemo(
     () =>
@@ -246,26 +238,16 @@ export function Client<T extends Game<any, any>>({
         {
           get: (_, prop: string) => {
             return (...args: any[]) => {
-              if (ctx.isHost)
-                setGameState(
-                  produce<GameState>((G) => {
-                    const moves =
-                      game.phases?.[G.phase]?.moves?.[prop] ?? game.moves[prop];
-                    moves({ G, ctx, playerID, sendChatMessage }, ...args);
-                  })
-                );
+              if (ctx.isHost) executeMove(playerID!, prop, ...args);
               else
                 socket.send(
-                  JSON.stringify({
-                    type: "action",
-                    args: [prop, ...args],
-                  })
+                  JSON.stringify({ type: "action", args: [prop, ...args] })
                 );
             };
           },
         }
       ) as GameClientMoves<typeof game>,
-    [game, ctx, playerID, sendChatMessage, socket]
+    [ctx, playerID, executeMove, socket]
   );
 
   useEffect(() => {

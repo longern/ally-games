@@ -116,9 +116,6 @@ function PlayerGrid({
 
   const handleClickAvatar = (id: string) => {
     switch (G.phase) {
-      case "vote":
-        moves.pickPlayer(id);
-        break;
       case "forced-trade":
         moves.pickPlayer(id);
         break;
