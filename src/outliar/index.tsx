@@ -61,15 +61,19 @@ function GameCard({
       }}
     >
       <CardActionArea onClick={onClick}>
-        <PersonIcon
-          sx={{
-            fontSize: 73,
+        <div
+          style={{
+            width: 72,
+            height: 72,
             margin: "24px 12px",
-            ...(card === -2
-              ? { color: "black" }
-              : card === -1
-              ? { visibility: "hidden" }
-              : { color: COLORS[card] }),
+            maskImage: "url(/outliar/logo192.png)",
+            maskSize: "contain",
+            backgroundColor:
+              card === -2
+                ? "black"
+                : card === -1
+                ? "transparent"
+                : COLORS[card],
           }}
         />
       </CardActionArea>
