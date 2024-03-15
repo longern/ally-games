@@ -558,7 +558,7 @@ const game = makeGame({
         nextRound({ G, ctx }) {
           ctx.playOrder.forEach((id) => {
             G.pub[id].score +=
-              G.pub[id].roundScore || 0 + (G.extra >= ctx.numPlayers ? 1 : 0);
+              (G.pub[id].roundScore || 0) + (G.extra >= ctx.numPlayers ? 1 : 0);
             G.pub[id].roundScore = 0;
             G.pub[id].action = undefined;
             G.pub[id].vote = undefined;
