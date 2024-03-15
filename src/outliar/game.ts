@@ -22,28 +22,29 @@ export type GameState = {
     string,
     {
       hand: number[];
-      handInSight: number[] | undefined;
+      handInSight?: number[];
       faceDown: number[];
       action: GameAction;
       outliarInSight: string;
-      vote: number | undefined;
+      target: string;
+      vote?: number;
     }
   >;
   // Players' public information
   pub: Record<
     string,
     {
-      action: GameAction | undefined;
+      action?: GameAction;
       score: number;
-      roundScore: number | undefined;
+      roundScore?: number;
       faceDownCount: number;
       done: boolean;
-      vote: number | undefined;
+      target?: string;
+      vote?: number;
     }
   >;
-  targets: Record<string, string>;
   winner: "outliar" | "ally" | null;
-  extra: number | undefined;
+  extra?: number;
 };
 
 const WILD_CARD = -2;
@@ -102,7 +103,6 @@ function init({ ctx }: { ctx: Ctx }) {
     secret: { vault, realOutliar },
     players,
     pub,
-    targets: {},
     winner: null,
   } as GameState;
 }
@@ -159,8 +159,10 @@ const game = makeGame({
       onBegin({ G, ctx }) {
         ctx.playOrder.forEach((id) => {
           G.players[id].action = undefined;
+          G.players[id].target = undefined;
           G.pub[id].action = undefined;
           G.pub[id].done = false;
+          G.pub[id].target = undefined;
         });
       },
 
@@ -281,23 +283,25 @@ const game = makeGame({
         pickPlayer({ G, playerID }, target: string) {
           if (
             G.players[playerID].action !== "vote" ||
-            G.targets[playerID] !== undefined
+            G.players[playerID].target !== undefined ||
+            playerID === target
           )
             return;
 
-          G.targets[playerID] = target;
+          G.players[playerID].target = target;
+          G.pub[playerID].target = target;
           G.players[playerID].handInSight = G.players[target].hand;
         },
 
         pickOtherCard({ G, playerID }, theirCard: number) {
           if (
-            G.targets[playerID] === undefined ||
+            G.players[playerID].target === undefined ||
             G.players[playerID].faceDown.length > 0
           )
             return;
 
           const me = G.players[playerID];
-          const target = G.players[G.targets[playerID]];
+          const target = G.players[G.players[playerID].target];
           if (!target.hand.includes(theirCard)) return;
           me.faceDown = [theirCard];
           G.pub[playerID].faceDownCount = 1;
@@ -307,7 +311,7 @@ const game = makeGame({
 
         pickCard({ G, playerID, ctx }, yourCard: number) {
           if (
-            G.targets[playerID] === undefined ||
+            G.players[playerID].target === undefined ||
             G.players[playerID].faceDown.length === 0
           )
             return;
@@ -321,13 +325,14 @@ const game = makeGame({
             return;
 
           const me = G.players[playerID];
-          const target = G.players[G.targets[playerID]];
+          const target = G.players[G.players[playerID].target];
           me.hand.splice(me.hand.indexOf(yourCard), 1);
           insort(target.hand, yourCard);
           insort(me.hand, me.faceDown[0]);
           me.faceDown = [];
           G.pub[playerID].faceDownCount = 0;
-          G.targets[playerID] = undefined;
+          G.players[playerID].target = undefined;
+          G.pub[playerID].target = undefined;
 
           G.phase = "videocam";
         },
@@ -353,17 +358,18 @@ const game = makeGame({
           if (G.players[playerID].action !== "videocam" || playerID === target)
             return;
 
-          G.targets[playerID] = target;
+          G.players[playerID].target = target;
           G.pub[playerID].done = true;
 
           const playerMonitering = ctx.playOrder.filter(
             (id) => G.players[id].action === "videocam"
           );
-          if (playerMonitering.some((id) => G.targets[id] === undefined))
+          if (playerMonitering.some((id) => G.players[id].target === undefined))
             return;
 
           playerMonitering.forEach((id) => {
-            G.players[id].handInSight = [...G.players[G.targets[id]].hand];
+            G.pub[id].target = G.players[id].target;
+            G.players[id].handInSight = [...G.players[G.pub[id].target].hand];
             G.pub[id].done = false;
           });
         },
@@ -376,7 +382,8 @@ const game = makeGame({
             return;
 
           G.players[playerID].handInSight = undefined;
-          G.targets[playerID] = undefined;
+          G.players[playerID].target = undefined;
+          G.pub[playerID].target = undefined;
           G.pub[playerID].done = true;
 
           const playerMonitering = ctx.playOrder.filter(
@@ -406,18 +413,18 @@ const game = makeGame({
           if (
             G.players[playerID].action !== "trade" ||
             playerID === target ||
-            G.targets[playerID] !== undefined
+            G.players[playerID].target !== undefined
           )
             return;
 
-          G.targets[playerID] = target;
+          G.players[playerID].target = target;
         },
 
         pickCard({ G, ctx, playerID }, card: number) {
           const me = G.players[playerID];
           if (
             me.action !== "trade" ||
-            G.targets[playerID] === undefined ||
+            G.players[playerID].target === undefined ||
             me.faceDown.length > 0
           )
             return;
@@ -437,8 +444,12 @@ const game = makeGame({
             Object.entries(G.players)
               .filter(([, player]) => player.action === "trade")
               .every(([id]) => G.pub[id].done)
-          )
+          ) {
+            Object.keys(G.pub).forEach((id) => {
+              G.pub[id].target = G.players[id].target;
+            });
             G.phase = "trade-response";
+          }
         },
       },
     },
@@ -457,7 +468,7 @@ const game = makeGame({
 
           const sourcePlayers = Object.entries(G.players).filter(
             ([id, player]) =>
-              player.action === "trade" && G.targets[id] === playerID
+              player.action === "trade" && G.pub[id].target === playerID
           );
           if (cardIndexes.length !== sourcePlayers.length) return;
 
@@ -473,8 +484,9 @@ const game = makeGame({
             insort(player.hand, responses[index]);
             insort(me.hand, player.faceDown[0]);
             player.faceDown = [];
+            G.players[id].target = undefined;
             G.pub[id].faceDownCount = 0;
-            G.targets[id] = undefined;
+            G.pub[id].target = undefined;
           });
 
           if (
@@ -490,6 +502,7 @@ const game = makeGame({
       onBegin({ G }) {
         Object.values(G.pub).forEach((player) => {
           player.done = player.action === "vault" ? false : undefined;
+          player.target = undefined;
         });
 
         if (
@@ -524,12 +537,6 @@ const game = makeGame({
               .every((id) => G.pub[id].done)
           ) {
             G.phase = "decide";
-            ctx.playOrder.forEach((id) => {
-              G.players[id].action = undefined;
-              G.pub[id].action = undefined;
-              G.pub[id].done = false;
-              G.targets[id] = undefined;
-            });
           }
         },
       },

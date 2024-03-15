@@ -109,7 +109,7 @@ function GameHint({
     )
   ) : G.phase === "forced-trade" ? (
     me.action === "vote" ? (
-      G.targets[playerID] === undefined ? (
+      G.players[playerID].target === undefined ? (
         t("Choose a player")
       ) : (
         t("Choose a card")
@@ -118,14 +118,14 @@ function GameHint({
       waitingText
     )
   ) : G.phase === "videocam" ? (
-    me.action === "videocam" && G.targets[playerID] === undefined ? (
+    me.action === "videocam" && G.players[playerID].target === undefined ? (
       t("Choose a player")
     ) : (
       me.handInSight === undefined && waitingText
     )
   ) : G.phase === "trade" ? (
     me.action === "trade" ? (
-      G.targets[playerID] === undefined ? (
+      G.players[playerID].target === undefined ? (
         t("Choose a player")
       ) : me.faceDown.length === 0 ? (
         t("Choose a card")
@@ -190,7 +190,7 @@ function PlayerGrid({
           }}
         >
           <Card
-            elevation={G.targets[playerID] === id ? 8 : 0}
+            elevation={G.players[playerID].target === id ? 8 : 0}
             sx={{ background: "none", position: "relative" }}
           >
             <CardActionArea onClick={() => handleClickAvatar(id)}>
@@ -203,13 +203,27 @@ function PlayerGrid({
                 }}
               >
                 <Badge
+                  invisible={G.pub[id].done === undefined}
                   badgeContent={
                     G.pub[id].done === undefined ? null : G.pub[id].done ? (
-                      <CheckIcon color="success" />
+                      <CheckIcon color="inherit" />
                     ) : (
                       <MoreHorizIcon />
                     )
                   }
+                  sx={{
+                    ".MuiBadge-badge": {
+                      backgroundColor:
+                        G.pub[id].target !== undefined
+                          ? COLORS[ctx.playOrder.indexOf(G.pub[id].target)]
+                          : "black",
+                      color: "white",
+                      width: 24,
+                      height: 24,
+                      borderRadius: "50%",
+                      padding: 0,
+                    },
+                  }}
                 >
                   <Avatar sx={{ bgcolor: COLORS[index] }}>
                     <PersonIcon />
@@ -289,7 +303,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
           (id) => G.pub[id].action === "trade"
         );
         const responsesRequired = tradePlayers.filter(
-          (id) => G.targets[id] === playerID
+          (id) => G.pub[id].target === playerID
         ).length;
         if (responsesRequired === 0) return;
         const nextSelectedCards = selectedCards.includes(index)
@@ -456,7 +470,9 @@ const GameBoard: GameBoardComponent<typeof game> = ({
       <Dialog open={me.handInSight !== undefined}>
         <DialogTitle>
           {t("hand-of", {
-            player: ctx.playerNames[G.targets[playerID]] ?? G.targets[playerID],
+            player:
+              ctx.playerNames[G.players[playerID].target] ??
+              G.players[playerID].target,
           })}
         </DialogTitle>
         <Stack
