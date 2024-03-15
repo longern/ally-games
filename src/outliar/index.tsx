@@ -27,7 +27,7 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import VideocamIcon from "@mui/icons-material/Videocam";
 
 import { Client, GameBoardComponent } from "../Client";
-import game, { GameAction } from "./game";
+import game, { BLANK_CARD, GameAction, WILD_CARD } from "./game";
 import { ParentSocket } from "../ParentSocket";
 import i18n from "./i18n";
 
@@ -61,17 +61,17 @@ function GameCard({
       }}
     >
       <CardActionArea onClick={onClick}>
-        <div
-          style={{
+        <Box
+          sx={{
             width: 72,
             height: 72,
             margin: "24px 12px",
             maskImage: "url(/outliar/logo192.png)",
             maskSize: "contain",
-            backgroundColor:
-              card === -2
-                ? "black"
-                : card === -1
+            background:
+              card === WILD_CARD
+                ? "linear-gradient(45deg, #f44336, #ffeb3b, #03a9f4, #8bc34a, #ff9800, #f44336)"
+                : card === BLANK_CARD
                 ? "transparent"
                 : COLORS[card],
           }}

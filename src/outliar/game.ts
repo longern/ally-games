@@ -47,8 +47,8 @@ export type GameState = {
   extra?: number;
 };
 
-const WILD_CARD = -2;
-const BLANK_CARD = -1;
+export const WILD_CARD = -2;
+export const BLANK_CARD = -1;
 
 function insort<T>(array: T[], value: T) {
   const insertIndex = array.findLastIndex((item) => item <= value) + 1;
