@@ -135,6 +135,12 @@ function GameHint({
     ) : (
       waitingText
     )
+  ) : G.phase === "trade-response" ? (
+    me.target !== undefined ? (
+      t("Choose a card")
+    ) : (
+      waitingText
+    )
   ) : G.phase === "vault" ? (
     me.action === "vault" && !G.pub[playerID].done ? (
       t("Choose a card")
@@ -271,7 +277,6 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   moves,
   playerID,
 }) => {
-  const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [showScores, setShowScores] = useState(false);
 
   const { t } = useTranslation();
@@ -299,21 +304,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
         moves.pickCard(card);
         break;
       case "trade-response":
-        const tradePlayers = ctx.playOrder.filter(
-          (id) => G.pub[id].action === "trade"
-        );
-        const responsesRequired = tradePlayers.filter(
-          (id) => G.pub[id].target === playerID
-        ).length;
-        if (responsesRequired === 0) return;
-        const nextSelectedCards = selectedCards.includes(index)
-          ? selectedCards.filter((i) => i !== index)
-          : [...selectedCards, index];
-        setSelectedCards(nextSelectedCards);
-        if (nextSelectedCards.length === responsesRequired) {
-          moves.pickResponse(nextSelectedCards);
-          setSelectedCards([]);
-        }
+        moves.pickCard(card);
         break;
       case "vault":
         moves.vault(card);
@@ -323,8 +314,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
 
   const handleClickOthersCard = (index: number) => {
     if (G.phase !== "forced-trade") return;
-    const card = me.handInSight![index];
-    moves.pickOtherCard(card);
+    moves.pickOtherCard(me.handInSight![index]);
   };
 
   useEffect(() => {
@@ -435,12 +425,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
           sx={{ justifyContent: "center", "&>*:last-child": { flexShrink: 0 } }}
         >
           {me.hand.map((card, i) => (
-            <GameCard
-              key={i}
-              card={card}
-              selected={selectedCards.includes(i)}
-              onClick={() => handleClickCard(i)}
-            />
+            <GameCard key={i} card={card} onClick={() => handleClickCard(i)} />
           ))}
         </Stack>
       </Stack>

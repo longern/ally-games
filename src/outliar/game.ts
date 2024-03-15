@@ -448,6 +448,18 @@ const game = makeGame({
             Object.keys(G.pub).forEach((id) => {
               G.pub[id].target = G.players[id].target;
             });
+            Object.keys(G.pub).forEach((id) => {
+              const sourcePlayers = Object.keys(G.pub).filter(
+                (sourceId) =>
+                  G.pub[sourceId].action === "trade" &&
+                  G.pub[sourceId].target === id
+              );
+              G.players[id].target = sourcePlayers.length
+                ? sourcePlayers[
+                    Math.floor(Math.random() * sourcePlayers.length)
+                  ]
+                : undefined;
+            });
             G.phase = "trade-response";
           }
         },
@@ -456,42 +468,37 @@ const game = makeGame({
 
     "trade-response": {
       moves: {
-        pickResponse({ G, ctx, playerID }, cardIndexes: number[]) {
+        pickCard({ G, ctx, playerID }, card: number) {
           const me = G.players[playerID];
           if (
-            cardIndexes.some((i) => ctx.playOrder[me.hand[i]] !== playerID) &&
-            G.players[playerID].hand
-              .filter((_, i) => !cardIndexes.includes(i))
-              .some((card) => ctx.playOrder[card] === playerID)
+            ctx.playOrder[card] !== playerID &&
+            G.players[playerID].hand.some(
+              (card) => ctx.playOrder[card] === playerID
+            )
           )
             return;
 
-          const sourcePlayers = Object.entries(G.players).filter(
-            ([id, player]) =>
-              player.action === "trade" && G.pub[id].target === playerID
+          if (me.target === undefined) return;
+          me.hand.splice(me.hand.indexOf(card), 1);
+          insort(me.hand, G.players[me.target].faceDown[0]);
+          G.players[me.target].faceDown = [card];
+          G.pub[me.target].target = undefined;
+          const sourcePlayers = Object.keys(G.pub).filter(
+            (id) =>
+              G.pub[id].action === "trade" && G.pub[id].target === playerID
           );
-          if (cardIndexes.length !== sourcePlayers.length) return;
-
-          const responses = [];
-          for (const index of cardIndexes.toReversed()) {
-            const [response] = me.hand.splice(index, 1);
-            const randomIndex = Math.floor(
-              Math.random() * (responses.length + 1)
-            );
-            responses.splice(randomIndex, 0, response);
-          }
-          sourcePlayers.forEach(([id, player], index) => {
-            insort(player.hand, responses[index]);
-            insort(me.hand, player.faceDown[0]);
-            player.faceDown = [];
-            G.players[id].target = undefined;
-            G.pub[id].faceDownCount = 0;
-            G.pub[id].target = undefined;
-          });
+          me.target = sourcePlayers.length
+            ? sourcePlayers[Math.floor(Math.random() * sourcePlayers.length)]
+            : undefined;
 
           if (
-            Object.values(G.pub).every((player) => player.faceDownCount === 0)
+            Object.values(G.pub).every((player) => player.target === undefined)
           ) {
+            Object.entries(G.players).forEach(([id, player]) => {
+              if (player.faceDown.length === 0) return;
+              insort(player.hand, player.faceDown[0]);
+              G.pub[id].faceDownCount = 0;
+            });
             G.phase = "vault";
           }
         },
