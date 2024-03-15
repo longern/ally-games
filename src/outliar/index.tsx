@@ -30,19 +30,8 @@ import { Client, GameBoardComponent } from "../Client";
 import game, { BLANK_CARD, GameAction, WILD_CARD } from "./game";
 import { ParentSocket } from "../ParentSocket";
 import i18n from "./i18n";
-
-const COLORS = [
-  "#f44336",
-  "#8bc34a",
-  "#03a9f4",
-  "#ffeb3b",
-  "#ff9800",
-  "#be44d3",
-  "#f39fae",
-  "#966959",
-  "#50c8d7",
-  "#9b9a9a",
-];
+import ScoreTable from "./ScoreTable";
+import { COLORS } from "./utils";
 
 function GameCard({
   card,
@@ -85,12 +74,7 @@ type OutliarBoardProps = Partial<
   Parameters<GameBoardComponent<typeof game>>[0]
 >;
 
-function GameHint({
-  G,
-  moves,
-  playerID,
-  showScores,
-}: OutliarBoardProps & { showScores: boolean }) {
+function GameHint({ G, moves, playerID }: OutliarBoardProps) {
   const { t } = useTranslation();
 
   const me = G.players[playerID];
@@ -147,25 +131,10 @@ function GameHint({
     ) : (
       waitingText
     )
-  ) : G.phase === "conclude" ? (
-    showScores &&
-    (playerID === me.outliarInSight ? (
-      <Button variant="contained" onClick={() => moves.nextRound()}>
-        {t("Next round")}
-      </Button>
-    ) : (
-      t("Waiting for next round...")
-    ))
-  ) : null;
+  ) : G.phase === "conclude" ? null : null;
 }
 
-function PlayerGrid({
-  G,
-  ctx,
-  moves,
-  playerID,
-  showScores,
-}: OutliarBoardProps & { showScores: boolean }) {
+function PlayerGrid({ G, ctx, moves, playerID }: OutliarBoardProps) {
   const me = G.players[playerID];
 
   const handleClickAvatar = (id: string) => {
@@ -241,14 +210,6 @@ function PlayerGrid({
                   }}
                 >
                   {ctx.playerNames[id] ?? id}
-                  {": "}
-                  {G.pub[id].score}
-                  {showScores && (
-                    <>
-                      {G.pub[id].roundScore >= 0 ? "+" : ""}
-                      {G.pub[id].roundScore}
-                    </>
-                  )}
                 </Box>
               </Stack>
             </CardActionArea>
@@ -318,10 +279,13 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   };
 
   useEffect(() => {
-    if (G.phase !== "conclude") return;
+    if (G.phase !== "conclude") {
+      setShowScores(false);
+      return;
+    }
     setTimeout(() => {
       setShowScores(true);
-    }, 1000);
+    }, 2000);
     return () => {
       setShowScores(false);
     };
@@ -353,13 +317,7 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   return (
     <Container maxWidth="md" sx={{ height: "100%", padding: 1 }}>
       <Stack sx={{ height: "100%" }}>
-        <PlayerGrid
-          G={G}
-          ctx={ctx}
-          moves={moves}
-          playerID={playerID}
-          showScores={showScores}
-        />
+        <PlayerGrid G={G} ctx={ctx} moves={moves} playerID={playerID} />
         <Stack
           sx={{
             flexGrow: 1,
@@ -413,16 +371,15 @@ const GameBoard: GameBoardComponent<typeof game> = ({
             alignItems: "center",
           }}
         >
-          <GameHint
-            G={G}
-            moves={moves}
-            playerID={playerID}
-            showScores={showScores}
-          />
+          <GameHint G={G} moves={moves} playerID={playerID} />
         </Stack>
         <Stack
           direction="row"
-          sx={{ justifyContent: "center", "&>*:last-child": { flexShrink: 0 } }}
+          sx={{
+            justifyContent: "center",
+            minHeight: 120,
+            "&>*:last-child": { flexShrink: 0 },
+          }}
         >
           {me.hand.map((card, i) => (
             <GameCard key={i} card={card} onClick={() => handleClickCard(i)} />
@@ -481,6 +438,19 @@ const GameBoard: GameBoardComponent<typeof game> = ({
             <Button onClick={() => moves.videocamConclude()}>OK</Button>
           </DialogActions>
         )}
+      </Dialog>
+
+      <Dialog open={showScores}>
+        <ScoreTable G={G} ctx={ctx} />
+        <DialogActions>
+          {playerID === me.outliarInSight ? (
+            <Button variant="contained" onClick={() => moves.nextRound()}>
+              {t("Next round")}
+            </Button>
+          ) : (
+            t("Waiting for next round...")
+          )}
+        </DialogActions>
       </Dialog>
     </Container>
   );
