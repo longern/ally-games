@@ -11,6 +11,7 @@ import {
   Container,
   Dialog,
   DialogActions,
+  DialogContent,
   DialogTitle,
   GlobalStyles,
   Grid,
@@ -205,15 +206,18 @@ function PlayerGrid({ G, ctx, moves, playerID }: OutliarBoardProps) {
                   </Avatar>
                 </Badge>
                 <Box
-                  sx={{
-                    color: me.outliarInSight === id ? "red" : undefined,
-                  }}
+                  sx={
+                    me.outliarInSight === id
+                      ? { color: "red", fontWeight: "bold" }
+                      : undefined
+                  }
                 >
                   {ctx.playerNames[id] ?? id}
                 </Box>
               </Stack>
             </CardActionArea>
-            {G.pub[id].vote !== undefined && (
+            {(G.pub[id].vote !== undefined ||
+              (id === playerID && G.players[id].vote !== undefined)) && (
               <Box
                 sx={{
                   position: "absolute",
@@ -222,7 +226,11 @@ function PlayerGrid({ G, ctx, moves, playerID }: OutliarBoardProps) {
                   transform: "scale(0.35)",
                 }}
               >
-                <GameCard card={G.pub[id].vote} />
+                <GameCard
+                  card={
+                    G.pub[id].vote ?? (id === playerID && G.players[id].vote)
+                  }
+                />
               </Box>
             )}
           </Card>
@@ -441,7 +449,9 @@ const GameBoard: GameBoardComponent<typeof game> = ({
       </Dialog>
 
       <Dialog open={showScores}>
-        <ScoreTable G={G} ctx={ctx} />
+        <DialogContent>
+          <ScoreTable G={G} ctx={ctx} />
+        </DialogContent>
         <DialogActions>
           {playerID === me.outliarInSight ? (
             <Button variant="contained" onClick={() => moves.nextRound()}>
