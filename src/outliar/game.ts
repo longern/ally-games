@@ -76,10 +76,13 @@ function init({ ctx }: { ctx: Ctx }) {
     }
   });
 
+  const numWildCards = Math.max(Math.floor(ctx.numPlayers / 2) - 1, 0);
   const deck = [
-    WILD_CARD,
-    ...range(ctx.numPlayers).flatMap((i) => new Array(ctx.numPlayers).fill(i)),
-    ...new Array(ctx.numPlayers - 1).fill(BLANK_CARD),
+    ...range(ctx.numPlayers).flatMap((i) =>
+      new Array(ctx.numPlayers - 1).fill(i)
+    ),
+    ...new Array(numWildCards).fill(WILD_CARD),
+    ...new Array(ctx.numPlayers + 1 - numWildCards).fill(BLANK_CARD),
   ];
 
   for (const playerID in players) {
