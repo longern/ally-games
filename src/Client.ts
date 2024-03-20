@@ -166,10 +166,10 @@ export function Client<T extends Game<any, any>>({
   );
 
   useEffect(() => {
-    if (!ctx?.isHost || gameState.phase === undefined) return;
+    if (ctx?.isHost !== true) return;
     const client = { ctx, playerID, sendChatMessage };
-    const phase = game.phases?.[gameState.phase];
-    if (!phase) return;
+    const phase = game.phases?.[gameState?.phase];
+    if (typeof phase !== "object" && phase !== null) return;
     setGameState(
       produce<GameState>((G) => {
         phase?.onBegin?.({ G, ...client });
@@ -251,7 +251,7 @@ export function Client<T extends Game<any, any>>({
   );
 
   useEffect(() => {
-    if (!ctx?.isHost || !gameState) return;
+    if (ctx?.isHost !== true || gameState === null) return;
     ctx.playOrder.forEach((player) => {
       if (player === playerID) return;
       socket.send(
