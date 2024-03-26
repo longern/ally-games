@@ -76,7 +76,7 @@ function init({ ctx }: { ctx: Ctx }) {
     }
   });
 
-  const numWildCards = Math.max(Math.floor(ctx.numPlayers / 2) - 1, 0);
+  const numWildCards = Math.max(Math.floor(ctx.numPlayers / 2) - 1, 1);
   const deck = [
     ...range(ctx.numPlayers).flatMap((i) =>
       new Array(ctx.numPlayers - 1).fill(i)
@@ -95,8 +95,8 @@ function init({ ctx }: { ctx: Ctx }) {
   }
 
   const vault: number[] = [];
-  for (let i = 0; i < deck.length; i++) {
-    const randomIndex = Math.floor(Math.random() * (i + 1));
+  while (deck.length) {
+    const randomIndex = Math.floor(Math.random() * deck.length);
     vault.push(deck[randomIndex]);
     deck.splice(randomIndex, 1);
   }
