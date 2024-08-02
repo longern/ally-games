@@ -1,8 +1,8 @@
-import { Ctx, makeGame } from "../Client";
+import { Ctx, createGame } from "../store";
 
 export type GameAction = "emergency" | "vote" | "videocam" | "trade" | "vault";
 
-export type GameState = {
+type GameState = {
   phase:
     | "decide"
     | "emergency"
@@ -152,7 +152,7 @@ function conclude({ G }: { G: GameState }) {
   }
 }
 
-const game = makeGame({
+const game = createGame({
   setup({ ctx }) {
     return init({ ctx });
   },

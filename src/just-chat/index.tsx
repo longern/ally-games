@@ -1,23 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import SendIcon from "@mui/icons-material/Send";
 import {
   Avatar,
   Box,
   Card,
   Container,
-  CssBaseline,
   IconButton,
   Stack,
   TextField,
-  ThemeProvider,
   Typography,
-  createTheme,
 } from "@mui/material";
-import SendIcon from "@mui/icons-material/Send";
+import React, { useCallback, useState } from "react";
 
-import { ParentSocket } from "../ParentSocket";
-import { Client, GameBoardComponent, makeGame } from "../Client";
+import { Client, GameBoardComponent } from "../Client";
+import { createGame } from "../store";
+import { useEnhancer } from "../enhancer";
 
-const game = makeGame({ setup: () => ({}), moves: {} });
+const game = createGame({ setup: () => {}, moves: {} });
 
 const GameBoard: GameBoardComponent<typeof game> = ({
   ctx,
@@ -119,42 +117,8 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   );
 };
 
-function useSocket() {
-  const [socket, setSocket] = useState<ParentSocket | null>(null);
-
-  useEffect(() => {
-    const socket = new ParentSocket();
-    setSocket(socket);
-    return () => {
-      socket.close();
-    };
-  }, []);
-
-  return socket;
-}
-
 export function Component() {
-  const socket = useSocket();
+  const enhancer = useEnhancer();
 
-  const theme = useMemo(() => {
-    return createTheme({
-      palette: {
-        background: {
-          default: "#fafafa",
-        },
-      },
-      typography: {
-        button: {
-          textTransform: "none",
-        },
-      },
-    });
-  }, []);
-
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      {socket && <Client game={game} board={GameBoard} socket={socket} />}
-    </ThemeProvider>
-  );
+  return <Client game={game} board={GameBoard} enhancer={enhancer} />;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -6,18 +6,14 @@ import {
   CardMedia,
   CircularProgress,
   Container,
-  CssBaseline,
-  GlobalStyles,
   Grid,
   Stack,
   TextField,
-  ThemeProvider,
-  createTheme,
 } from "@mui/material";
 
 import { GuessPicture } from "./game";
-import { ParentSocket } from "../ParentSocket";
 import { Client, GameBoardComponent } from "../Client";
+import { useEnhancer } from "../enhancer";
 
 const COLORS = [
   "#f44336",
@@ -297,57 +293,10 @@ const GameBoard: GameBoardComponent<typeof GuessPicture> = function ({
   );
 };
 
-function useSocket() {
-  const [socket, setSocket] = useState<ParentSocket | null>(null);
-
-  useEffect(() => {
-    const socket = new ParentSocket();
-    setSocket(socket);
-    return () => {
-      socket.close();
-    };
-  }, []);
-
-  return socket;
-}
-
-const globalStyles = (
-  <GlobalStyles
-    styles={{
-      "html, body, #root": {
-        height: "100%",
-      },
-
-      img: {
-        maxWidth: "100%",
-        maxHeight: "100%",
-      },
-    }}
-  />
-);
-
 function GameApp() {
-  const socket = useSocket();
+  const enhancer = useEnhancer();
 
-  const theme = useMemo(() => {
-    return createTheme({
-      typography: {
-        button: {
-          textTransform: "none",
-        },
-      },
-    });
-  }, []);
-
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      {globalStyles}
-      {socket && (
-        <Client game={GuessPicture} board={GameBoard} socket={socket} />
-      )}
-    </ThemeProvider>
-  );
+  return <Client game={GuessPicture} board={GameBoard} enhancer={enhancer} />;
 }
 
 export { GameApp as Component };

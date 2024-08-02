@@ -1,6 +1,6 @@
-import { STRIP_SECRET, makeGame } from "../Client";
+import { createGame, STRIP_SECRET } from "../store";
 
-export type GameState = {
+type GameState = {
   stage: "upload" | "pick" | "confuse" | "guess" | "reveal";
   description: string;
   players: Record<
@@ -18,7 +18,7 @@ export type GameState = {
   currentPlayer: string;
 };
 
-export const GuessPicture = makeGame({
+export const GuessPicture = createGame({
   setup: ({ ctx }) => {
     return {
       stage: "upload",

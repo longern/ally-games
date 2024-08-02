@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   Paper,
@@ -8,12 +7,16 @@ import {
   TableContainer,
   TableRow,
 } from "@mui/material";
+import React from "react";
 
-import { GameState } from "./game";
-import { Ctx } from "../Client";
+import game from "./game";
 import { COLORS } from "./utils";
+import { GameBoardProps } from "../Client";
 
-export function ScoreTable({ G, ctx }: { G: GameState; ctx: Ctx }) {
+export function ScoreTable({
+  G,
+  ctx,
+}: Pick<GameBoardProps<typeof game>, "G" | "ctx">) {
   return (
     <TableContainer component={Paper}>
       <Table aria-label="score table">

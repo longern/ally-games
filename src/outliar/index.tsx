@@ -13,7 +13,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  GlobalStyles,
   Grid,
   Stack,
 } from "@mui/material";
@@ -29,10 +28,10 @@ import VideocamIcon from "@mui/icons-material/Videocam";
 
 import { Client, GameBoardComponent } from "../Client";
 import game, { BLANK_CARD, GameAction, WILD_CARD } from "./game";
-import { ParentSocket } from "../ParentSocket";
 import i18n from "./i18n";
 import ScoreTable from "./ScoreTable";
 import { COLORS } from "./utils";
+import { useEnhancer } from "../enhancer";
 
 function GameCard({
   card,
@@ -466,33 +465,12 @@ const GameBoard: GameBoardComponent<typeof game> = ({
   );
 };
 
-function useSocket() {
-  const [socket, setSocket] = useState<ParentSocket | null>(null);
-
-  useEffect(() => {
-    const socket = new ParentSocket();
-    setSocket(socket);
-    return () => {
-      socket.close();
-    };
-  }, []);
-
-  return socket;
-}
-
-const globalStyles = (
-  <GlobalStyles
-    styles={{ "html, body, #root": { height: "100%" }, body: { margin: 0 } }}
-  />
-);
-
 export function Component() {
-  const socket = useSocket();
+  const enhancer = useEnhancer();
 
   return (
     <I18nextProvider i18n={i18n}>
-      {globalStyles}
-      {socket && <Client game={game} board={GameBoard} socket={socket} />}
+      <Client game={game} board={GameBoard} enhancer={enhancer} />
     </I18nextProvider>
   );
 }
