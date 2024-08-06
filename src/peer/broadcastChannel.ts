@@ -1,11 +1,11 @@
-import { Socket } from "./types";
+import { Connection, Peer } from "./types";
 
-function adaptor(broadcastChannel: BroadcastChannel): Socket {
+function adaptor(broadcastChannel: BroadcastChannel): Connection {
   return {
-    addEventListener: (type: "message", callback) => {
+    addEventListener: (type: string, callback) => {
       broadcastChannel.addEventListener(type, callback);
     },
-    removeEventListener: (type: "message", callback) => {
+    removeEventListener: (type: string, callback) => {
       broadcastChannel.removeEventListener(type, callback);
     },
     send: (data) => {
@@ -19,13 +19,15 @@ function adaptor(broadcastChannel: BroadcastChannel): Socket {
 
 export function createPeer() {
   return {
-    open({ onSocketOpen }: { onSocketOpen: (socket: Socket) => any }) {
+    open({ onConnection }) {
       const methods = {
-        open: (_: any) => {
-          const randomChannel = Math.random().toString(36).substring(7);
+        connect() {
+          const randomChannel = crypto
+            .getRandomValues(new Uint32Array(1))[0]
+            .toString(36);
 
           const connection = new BroadcastChannel(randomChannel);
-          onSocketOpen(adaptor(connection));
+          onConnection(adaptor(connection));
 
           return randomChannel;
         },
@@ -43,10 +45,12 @@ export function createPeer() {
           JSON.stringify({ jsonrpc: "2.0", result, id: data.id })
         );
       });
+
+      return channelName;
     },
 
-    connect(channelName: string) {
-      return new Promise<Socket>((resolve, reject) => {
+    connect(channelName) {
+      return new Promise((resolve, reject) => {
         const channel = new BroadcastChannel(channelName);
         channel.addEventListener("message", (event) => {
           const data = JSON.parse(event.data);
@@ -56,9 +60,11 @@ export function createPeer() {
           const connection = new BroadcastChannel(connectionID);
           resolve(adaptor(connection));
         });
-        channel.postMessage(JSON.stringify({ jsonrpc: "2.0", method: "open" }));
+        channel.postMessage(
+          JSON.stringify({ jsonrpc: "2.0", method: "connect" })
+        );
         setTimeout(() => reject(new Error("timeout")), 5000);
       });
     },
-  };
+  } as Peer;
 }

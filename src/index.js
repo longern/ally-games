@@ -7,9 +7,11 @@ import {
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { Provider } from "react-redux";
 
 import Home from "./home";
 import EnhancerProvider from "./enhancer";
+import store from "./app/store";
 
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
@@ -40,12 +42,14 @@ const globalStyles = (
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <EnhancerProvider>
-        <CssBaseline />
-        {globalStyles}
-        <RouterProvider router={router} />
-      </EnhancerProvider>
-    </ThemeProvider>
+    <Provider store={store}>
+      <ThemeProvider theme={theme}>
+        <EnhancerProvider>
+          <CssBaseline />
+          {globalStyles}
+          <RouterProvider router={router} />
+        </EnhancerProvider>
+      </ThemeProvider>
+    </Provider>
   </React.StrictMode>
 );

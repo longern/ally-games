@@ -1,4 +1,4 @@
-import { Ctx, createGame } from "../store";
+import { Ctx, createGame } from "../app/game";
 
 export type GameAction = "emergency" | "vote" | "videocam" | "trade" | "vault";
 

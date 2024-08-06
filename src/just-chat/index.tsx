@@ -12,7 +12,7 @@ import {
 import React, { useCallback, useState } from "react";
 
 import { Client, GameBoardComponent } from "../Client";
-import { createGame } from "../store";
+import { createGame } from "../app/game";
 import { useEnhancer } from "../enhancer";
 
 const game = createGame({ setup: () => {}, moves: {} });

@@ -17,7 +17,7 @@ import {
   GameMoveFunctions,
   createGameStore,
   sendChatMessage as sendChatMessageAction,
-} from "./store";
+} from "./app/game";
 
 export type GameBoardProps<G> = G extends Game<infer S, infer M>
   ? {

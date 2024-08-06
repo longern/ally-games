@@ -1,11 +1,21 @@
-export interface Socket {
-  addEventListener: (
-    type: "message",
-    callback: (event: MessageEvent<string>) => any
+export interface Peer {
+  open: (options: { onConnection: (connection: Connection) => void }) => string;
+  connect: (roomID: string) => Promise<Connection>;
+}
+
+interface ConnectionEventMap {
+  message: MessageEvent<string>;
+  close: CloseEvent;
+}
+
+export interface Connection {
+  addEventListener: <K extends keyof ConnectionEventMap>(
+    type: K,
+    callback: (event: ConnectionEventMap[K]) => any
   ) => void;
-  removeEventListener: (
-    type: "message",
-    callback: (event: MessageEvent<string>) => void
+  removeEventListener: <K extends keyof ConnectionEventMap>(
+    type: K,
+    callback: (event: ConnectionEventMap[K]) => any
   ) => void;
   send: (data: string) => void;
   close: () => void;

@@ -1,20 +1,47 @@
 import { Box, Button, Stack, TextField, Typography } from "@mui/material";
 import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { createPeer } from "../peer/broadcastChannel";
+import { useAppDispatch, useAppSelector } from "../app/store";
+import {
+  chooseGame,
+  createLobby,
+  getEnhancer,
+  getReady,
+  joinLobby,
+  startGame,
+} from "../app/lobby";
+import { useSetEnhancer } from "../enhancer";
 
-function CreateRoom({ onClose }: { onClose: () => void }) {
-  const [roomID, setRoomID] = React.useState("");
+function Lobby() {
+  const lobby = useAppSelector((state) => state.lobby);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const setEnhancer = useSetEnhancer();
 
   useEffect(() => {
-    const roomID = crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
-    setRoomID(roomID);
-  }, []);
+    dispatch(chooseGame("just-chat"));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!lobby.matchRunning) return;
+    setEnhancer({ current: getEnhancer() });
+    navigate(`/${lobby.game}`);
+  }, [lobby.game, lobby.matchRunning, navigate, setEnhancer]);
 
   return (
-    <Stack direction="row">
-      <TextField value={roomID} fullWidth />
-      <Button>Copy</Button>
+    <Stack>
+      <Stack direction="row">
+        <TextField value={lobby.roomID} fullWidth />
+        <Button onClick={() => navigator.clipboard.writeText(lobby.roomID)}>
+          Copy
+        </Button>
+      </Stack>
+      {lobby.host === lobby.playerID ? (
+        <Button onClick={() => dispatch(startGame())}>Start</Button>
+      ) : (
+        <Button onClick={() => dispatch(getReady())}>Ready</Button>
+      )}
     </Stack>
   );
 }
@@ -22,10 +49,11 @@ function CreateRoom({ onClose }: { onClose: () => void }) {
 function JoinRoom() {
   const [roomID, setRoomID] = React.useState("");
 
+  const dispatch = useAppDispatch();
+
   const handleJoin = async () => {
-    const peer = createPeer();
-    const connection = await peer.connect(roomID);
-    return connection;
+    if (!roomID) return;
+    dispatch(joinLobby({ roomID }));
   };
 
   return (
@@ -42,8 +70,9 @@ function JoinRoom() {
 }
 
 function Home() {
-  const [creatingRoom, setCreatingRoom] = React.useState(false);
   const [joiningRoom, setJoiningRoom] = React.useState(false);
+  const roomID = useAppSelector((state) => state.lobby.roomID);
+  const dispatch = useAppDispatch();
 
   return (
     <Box
@@ -54,8 +83,8 @@ function Home() {
         alignItems: "center",
       }}
     >
-      {creatingRoom ? (
-        <CreateRoom onClose={() => setCreatingRoom(false)} />
+      {roomID ? (
+        <Lobby />
       ) : joiningRoom ? (
         <JoinRoom />
       ) : (
@@ -66,7 +95,7 @@ function Home() {
           <Button
             variant="contained"
             size="large"
-            onClick={() => setCreatingRoom(true)}
+            onClick={() => dispatch(createLobby({}))}
           >
             Create Room
           </Button>
