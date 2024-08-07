@@ -6,21 +6,22 @@ import { useAppDispatch, useAppSelector } from "../app/store";
 import {
   chooseGame,
   createLobby,
-  getEnhancer,
   getReady,
   joinLobby,
   startGame,
 } from "../app/lobby";
+import { getEnhancer } from "../app/lobbyMiddleware";
 import { useSetEnhancer } from "../enhancer";
 
 function Lobby() {
-  const lobby = useAppSelector((state) => state.lobby);
+  const lobby = useAppSelector((state) => state.lobby.state);
+  const playerID = useAppSelector((state) => state.lobby.playerID);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const setEnhancer = useSetEnhancer();
 
   useEffect(() => {
-    dispatch(chooseGame("just-chat"));
+    dispatch(chooseGame("block-blast"));
   }, [dispatch]);
 
   useEffect(() => {
@@ -30,14 +31,15 @@ function Lobby() {
   }, [lobby.game, lobby.matchRunning, navigate, setEnhancer]);
 
   return (
-    <Stack>
+    <Stack spacing={2}>
       <Stack direction="row">
         <TextField value={lobby.roomID} fullWidth />
         <Button onClick={() => navigator.clipboard.writeText(lobby.roomID)}>
           Copy
         </Button>
       </Stack>
-      {lobby.host === lobby.playerID ? (
+      <Typography variant="body1">{lobby.playOrder.length} players</Typography>
+      {lobby.host === playerID ? (
         <Button onClick={() => dispatch(startGame())}>Start</Button>
       ) : (
         <Button onClick={() => dispatch(getReady())}>Ready</Button>
@@ -71,7 +73,7 @@ function JoinRoom() {
 
 function Home() {
   const [joiningRoom, setJoiningRoom] = React.useState(false);
-  const roomID = useAppSelector((state) => state.lobby.roomID);
+  const roomID = useAppSelector((state) => state.lobby.state.roomID);
   const dispatch = useAppDispatch();
 
   return (

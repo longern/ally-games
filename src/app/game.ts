@@ -83,14 +83,17 @@ export type AppState<GameState = any> = {
 
 const clientActions = {
   setup: createAction<Ctx, "client/setup">("client/setup"),
+  setCtx: createAction<Ctx, "client/setCtx">("client/setCtx"),
   setPlayerID: createAction<string, "client/setPlayerID">("client/setPlayerID"),
+  setGameState: createAction<any, "client/setGameState">("client/setGameState"),
   sendChatMessage: createAction<
     [{ playerID: string }, any],
     "client/sendChatMessage"
   >("client/sendChatMessage"),
+  reset: createAction("client/reset"),
 };
 
-export const { setup, setPlayerID, sendChatMessage } = clientActions;
+export const { setup, setCtx, setPlayerID, sendChatMessage } = clientActions;
 
 type Entries<T> = {
   [K in keyof T]: [K, T[K]];
@@ -137,8 +140,16 @@ function createGameSlice<G extends Game>({ game }: { game: G }) {
         state.state = game.setup({ ctx: action.payload });
       });
 
+      builder.addCase(clientActions.setCtx, (state, action) => {
+        state.ctx = action.payload;
+      });
+
       builder.addCase(clientActions.setPlayerID, (state, action) => {
         state.playerID = action.payload;
+      });
+
+      builder.addCase(clientActions.setGameState, (state, action) => {
+        state.state = action.payload;
       });
 
       builder.addCase(clientActions.sendChatMessage, (state, action) => {

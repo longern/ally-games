@@ -1,0 +1,81 @@
+.black-background {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background-color: black;
+  touch-action: none;
+}
+
+.block-blast {
+  background-color: white;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 9 / 16;
+  object-fit: contain;
+}
+
+.block-blast > .container {
+  width: 100vw;
+  max-width: 100%;
+  height: 100%;
+  padding: 4%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4%;
+}
+
+.block-blast .score {
+  text-align: center;
+}
+
+.block-blast .board {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5%;
+  background-color: white;
+}
+
+.block-blast .board-row {
+  display: flex;
+  gap: 0.5%;
+  flex: 1;
+}
+
+.block-blast .board-cell {
+  flex: 1;
+  background-color: whitesmoke;
+  position: relative;
+}
+
+.block-blast .block-1 {
+  background-color: #f44336;
+}
+
+.block-blast #piece-dragging {
+  position: absolute;
+  width: 103%;
+  height: 103%;
+  z-index: 100;
+}
+
+.block-blast .candidates {
+  aspect-ratio: 3 / 1;
+  display: flex;
+}
+
+.block-blast .candidates > * {
+  flex: 1;
+  padding: 2%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.piece .block {
+  flex: 1;
+  background-color: #f44336;
+}

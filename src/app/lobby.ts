@@ -1,51 +1,29 @@
-import {
-  createAsyncThunk,
-  createSlice,
-  PayloadAction,
-  StoreEnhancer,
-} from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 import { createPeer as defaultCreatePeer } from "../peer/broadcastChannel";
-import { Connection, Peer } from "../peer/types";
+import { Peer } from "../peer/types";
 import { AppDispatch, AppState } from "./store";
-import { createEnhancer } from "../middlewares/broadcastChannel";
+import { connections, createEnhancerFromState } from "./lobbyMiddleware";
 
-const connections: Record<string, Connection> = {};
-let _enhancer: StoreEnhancer = null;
+type LobbyThunk<ThunkArg = unknown> = (
+  arg: ThunkArg,
+  thunkAPI: { dispatch: AppDispatch; getState: () => AppState }
+) => any;
 
-const createLobbyThunk = createAsyncThunk.withTypes<{
-  state: AppState;
-  dispatch: AppDispatch;
-}>();
+export const lobbyThunks: Record<string, LobbyThunk> = {};
 
-function pick<T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
-  return keys.reduce((acc, key) => {
-    acc[key] = obj[key];
-    return acc;
-  }, {} as Pick<T, K>);
-}
-
-function serverApi({
-  state,
-  dispatch,
-  playerID,
-}: {
-  state: AppState;
-  dispatch: AppDispatch;
-  playerID: string;
-}) {
-  return {
-    join() {
-      return {
-        ...pick(state.lobby, ["roomID", "game", "players", "host"]),
-        playerID: playerID,
-      };
-    },
-    ready(value: boolean) {
-      dispatch(lobbySlice.actions.setReady({ playerID, ready: value }));
-    },
-  };
-}
+const createLobbyThunk = function <ThunkArg>(
+  type: string,
+  thunk: LobbyThunk<any>
+) {
+  lobbyThunks[type] = thunk;
+  return (arg?: ThunkArg) =>
+    Object.assign(
+      (dispatch: AppDispatch, getState: () => AppState) =>
+        thunk(arg, { dispatch, getState }),
+      { type, payload: arg }
+    );
+};
 
 export const createLobby = createLobbyThunk(
   "lobby/create",
@@ -56,34 +34,59 @@ export const createLobby = createLobbyThunk(
       onConnection: (connection) => {
         const clientID = Math.random().toString(36).substring(7);
         connections[clientID] = connection;
-        const api = serverApi({
-          state: thunkAPI.getState(),
-          dispatch: thunkAPI.dispatch,
-          playerID: clientID,
-        });
         connection.addEventListener("message", (event) => {
           const message = JSON.parse(event.data);
-          connection.send(
-            JSON.stringify({
-              result: api[message.method](...message.params),
-              id: message.id,
-            })
-          );
+          const type = message.type;
+          if (type === "lobby/joinMatch") {
+            thunkAPI.dispatch(
+              setLobbyState({
+                state: {
+                  players: {
+                    ...thunkAPI.getState().lobby.state.players,
+                    [clientID]: {
+                      playerID: clientID,
+                      playerName: message.playerName ?? clientID,
+                      ready: false,
+                    },
+                  },
+                  playOrder: [
+                    ...thunkAPI.getState().lobby.state.playOrder,
+                    clientID,
+                  ],
+                },
+              })
+            );
+            connection.send(
+              JSON.stringify({ type: "lobby/setPlayerID", payload: clientID })
+            );
+          }
+          if (typeof type !== "string" || !(type in lobbyThunks)) return;
+          thunkAPI.dispatch(lobbyThunks[type](message.payload, thunkAPI));
         });
         connection.addEventListener("close", () => {
           delete connections[clientID];
         });
       },
     });
-    thunkAPI.dispatch(lobbySlice.actions.setRoomID(roomID));
     const host = Math.random().toString(36).substring(7);
-    thunkAPI.dispatch(lobbySlice.actions.setHost(host));
-    thunkAPI.dispatch(lobbySlice.actions.setPlayerID(host));
+    thunkAPI.dispatch(
+      setLobbyState({
+        state: {
+          roomID,
+          host,
+          players: {
+            [host]: { playerID: host, playerName: host, ready: false },
+          },
+          playOrder: [host],
+        },
+      })
+    );
+    thunkAPI.dispatch(setPlayerID(host));
   }
 );
 
 export const joinLobby = createLobbyThunk(
-  "lobby/join",
+  "lobby/joinLobby",
   async (
     { roomID, createPeer }: { roomID: string; createPeer?: () => Peer },
     thunkAPI
@@ -93,95 +96,95 @@ export const joinLobby = createLobbyThunk(
     const connection = await peer.connect(roomID);
     connection.addEventListener("close", () => {
       delete connections[roomID];
-      thunkAPI.dispatch(lobbySlice.actions.setRoomID(""));
+      thunkAPI.dispatch(lobbySlice.actions.setLobbyState({ state: null }));
     });
     connection.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
-      if (message.method === "setPlayerID") {
-        thunkAPI.dispatch(lobbySlice.actions.setPlayerID(message.params));
-      } else if (message.method === "startGame") {
-        thunkAPI.dispatch(startGame());
+      if (message.type === "lobby/setPlayerID") {
+        thunkAPI.dispatch(setPlayerID(message.payload));
+      } else if (message.type === "lobby/setLobbyState") {
+        thunkAPI.dispatch(setLobbyState(message.payload));
+      } else if (message.method === "lobby/startGame") {
+        thunkAPI.dispatch(startGame(undefined));
       }
     });
-    connection.send(JSON.stringify({ method: "join" }));
+    connection.send(JSON.stringify({ type: "lobby/joinMatch" }));
     connections[roomID] = connection;
-    thunkAPI.dispatch(lobbySlice.actions.setRoomID(roomID));
   }
 );
 
 export const chooseGame = createLobbyThunk(
   "lobby/chooseGame",
   async (game: string, thunkAPI) => {
-    thunkAPI.dispatch(lobbySlice.actions.setGame(game));
+    thunkAPI.dispatch(lobbySlice.actions.setLobbyState({ state: { game } }));
   }
 );
 
 export const getReady = createLobbyThunk("lobby/ready", async (_, thunkAPI) => {
   const state = thunkAPI.getState();
+  const playerID = state.lobby.playerID;
+  thunkAPI.dispatch(
+    lobbySlice.actions.setLobbyState({
+      state: {
+        players: Object.fromEntries(
+          Object.entries(state.lobby.state.players).map(([id, player]) => [
+            id,
+            {
+              ...player,
+              ready: playerID === id ? !player.ready : player.ready,
+            },
+          ])
+        ),
+      },
+    })
+  );
 });
 
 export const startGame = createLobbyThunk(
   "lobby/start",
   async (_, thunkAPI) => {
-    const state = thunkAPI.getState();
-    if (state.lobby.playerID === state.lobby.host) {
-      Object.values(connections).forEach((connection) => {
-        connection.send(
-          JSON.stringify({ method: "startGame", params: state.lobby.game })
-        );
-      });
-    }
-    _enhancer = createEnhancer({
-      isHost: state.lobby.playerID === state.lobby.host,
-      connections: Object.values(connections),
-    });
+    createEnhancerFromState(thunkAPI.getState());
+    thunkAPI.dispatch(
+      lobbySlice.actions.setLobbyState({ state: { matchRunning: true } })
+    );
   }
 );
 
-export const getEnhancer = () => _enhancer;
+const initialState = {
+  state: {
+    roomID: "",
+    game: "",
+    players: {} as Record<
+      string,
+      { playerID: string; playerName: string; ready: boolean }
+    >,
+    playOrder: [] as string[],
+    matchRunning: false,
+    host: "",
+  },
+  playerID: null as string | null,
+};
 
 const lobbySlice = createSlice({
   name: "lobby",
-  initialState: {
-    roomID: "",
-    game: "",
-    players: [] as {
-      playerID: string;
-      playerName: string;
-      ready: boolean;
-    }[],
-    matchRunning: false,
-    host: "",
-    playerID: "",
-  },
+  initialState,
   reducers: {
-    setGame(state, action: PayloadAction<string>) {
-      state.game = action.payload;
-    },
-    setRoomID(state, action: PayloadAction<string>) {
-      state.roomID = action.payload;
-    },
-    setHost(state, action: PayloadAction<string>) {
-      state.host = action.payload;
+    setLobbyState(
+      state,
+      action: PayloadAction<{
+        state: Partial<(typeof initialState)["state"]>;
+      }>
+    ) {
+      Object.assign(state.state, action.payload.state);
     },
     setPlayerID(state, action: PayloadAction<string>) {
       state.playerID = action.payload;
     },
-    setReady(
-      state,
-      action: PayloadAction<{ playerID: string; ready: boolean }>
-    ) {
-      const player = state.players.find(
-        (player) => player.playerID === action.payload.playerID
-      );
-      if (player) player.ready = action.payload.ready;
-    },
-  },
-  extraReducers: (builder) => {
-    builder.addCase(startGame.fulfilled, (state) => {
-      state.matchRunning = true;
-    });
   },
 });
+
+const { setLobbyState, setPlayerID } = lobbySlice.actions;
+
+export type LobbyAction = typeof lobbySlice.actions;
 
 export default lobbySlice;

@@ -12,8 +12,7 @@ import {
 } from "@mui/material";
 
 import { GuessPicture } from "./game";
-import { Client, GameBoardComponent } from "../Client";
-import { useEnhancer } from "../enhancer";
+import { GameBoardComponent } from "../Client";
 
 const COLORS = [
   "#f44336",
@@ -293,10 +292,5 @@ const GameBoard: GameBoardComponent<typeof GuessPicture> = function ({
   );
 };
 
-function GameApp() {
-  const enhancer = useEnhancer();
-
-  return <Client game={GuessPicture} board={GameBoard} enhancer={enhancer} />;
-}
-
-export { GameApp as Component };
+export const game = GuessPicture;
+export const Board = GameBoard;

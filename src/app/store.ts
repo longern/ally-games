@@ -1,7 +1,7 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
+import { useDispatch, useSelector } from "react-redux";
 
 import lobbySlice from "./lobby";
-import { useDispatch, useSelector } from "react-redux";
 import lobbyMiddleware from "./lobbyMiddleware";
 
 const combinedReducer = combineReducers({
@@ -11,7 +11,7 @@ const combinedReducer = combineReducers({
 const store = configureStore({
   reducer: combinedReducer,
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(lobbyMiddleware),
+    getDefaultMiddleware().prepend(lobbyMiddleware),
 });
 
 export type AppStore = typeof store;

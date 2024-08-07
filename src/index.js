@@ -6,19 +6,12 @@ import {
 } from "@mui/material";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router-dom";
 import { Provider } from "react-redux";
 
-import Home from "./home";
 import EnhancerProvider from "./enhancer";
 import store from "./app/store";
-
-const router = createBrowserRouter([
-  { path: "/", element: <Home /> },
-  { path: "/dixit", lazy: () => import("./dixit") },
-  { path: "/just-chat", lazy: () => import("./just-chat") },
-  { path: "/outliar", lazy: () => import("./outliar") },
-]);
+import router from "./router";
 
 const theme = createTheme({
   typography: { button: { textTransform: "none" } },

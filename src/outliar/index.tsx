@@ -26,12 +26,13 @@ import StorageIcon from "@mui/icons-material/Storage";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import VideocamIcon from "@mui/icons-material/Videocam";
 
-import { Client, GameBoardComponent } from "../Client";
+import { GameBoardComponent } from "../Client";
 import game, { BLANK_CARD, GameAction, WILD_CARD } from "./game";
 import i18n from "./i18n";
 import ScoreTable from "./ScoreTable";
 import { COLORS } from "./utils";
-import { useEnhancer } from "../enhancer";
+
+export { game };
 
 function GameCard({
   card,
@@ -239,7 +240,7 @@ function PlayerGrid({ G, ctx, moves, playerID }: OutliarBoardProps) {
   );
 }
 
-const GameBoard: GameBoardComponent<typeof game> = ({
+export const Board: GameBoardComponent<typeof game> = ({
   G,
   ctx,
   moves,
@@ -322,155 +323,151 @@ const GameBoard: GameBoardComponent<typeof game> = ({
     );
 
   return (
-    <Container maxWidth="md" sx={{ height: "100%", padding: 1 }}>
-      <Stack sx={{ height: "100%" }}>
-        <PlayerGrid G={G} ctx={ctx} moves={moves} playerID={playerID} />
-        <Stack
-          sx={{
-            flexGrow: 1,
-            alignSelf: "center",
-            justifyContent: "center",
-            width: 256,
-          }}
-        >
-          {Object.entries(actionIcons).map(
-            ([action, icon]: [GameAction, React.ReactNode], actionIndex) => (
-              <Stack
-                key={action}
-                direction="row"
-                sx={{ padding: 1, position: "relative" }}
-              >
-                {icon}
-                <Stack
-                  sx={{
-                    flexGrow: 1,
-                    minWidth: 0,
-                    flexDirection: "row",
-                    justifyContent: "space-evenly",
-                    alignItems: "center",
-                  }}
-                >
-                  {ctx.playOrder.map(
-                    (id, index) =>
-                      G.pub[id].action === action && (
-                        <Box
-                          key={id}
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: "50%",
-                            backgroundColor: COLORS[index],
-                            ":first-of-type": { flexShrink: 0 },
-                          }}
-                        />
-                      )
-                  )}
-                </Stack>
-                {actionIndex === 0 && ActionIndicator}
-              </Stack>
-            )
-          )}
-        </Stack>
-        <Stack
-          sx={{
-            height: "48px",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <GameHint G={G} moves={moves} playerID={playerID} />
-        </Stack>
-        <Stack
-          direction="row"
-          sx={{
-            justifyContent: "center",
-            minHeight: 120,
-            "&>*:last-child": { flexShrink: 0 },
-          }}
-        >
-          {me.hand.map((card, i) => (
-            <GameCard key={i} card={card} onClick={() => handleClickCard(i)} />
-          ))}
-        </Stack>
-      </Stack>
-
-      <Dialog open={G.phase === "decide"}>
-        <DialogTitle>{t("Choose an action")}</DialogTitle>
-        <Grid container spacing={1} sx={{ paddingX: 2, paddingBottom: 2 }}>
-          {Object.entries(actionIcons).map(
-            ([action, icon]: [GameAction, React.ReactNode]) => (
-              <Grid item key={action} xs={4}>
-                <Card elevation={me.action === action ? 4 : 0}>
-                  <CardActionArea
-                    disabled={me.action !== undefined}
-                    onClick={() => moves.decideAction(action)}
-                    sx={{ textAlign: "center", paddingY: 1 }}
-                  >
-                    <CardMedia>{icon}</CardMedia>
-                    {t(action[0].toUpperCase() + action.slice(1))}
-                  </CardActionArea>
-                </Card>
-              </Grid>
-            )
-          )}
-        </Grid>
-      </Dialog>
-
-      <Dialog open={me.handInSight !== undefined}>
-        <DialogTitle>
-          {t("hand-of", {
-            player:
-              ctx.playerNames[G.players[playerID].target] ??
-              G.players[playerID].target,
-          })}
-        </DialogTitle>
-        <Stack
-          direction="row"
-          sx={{
-            margin: 2,
-            justifyContent: "center",
-            "&>*:last-child": { flexShrink: 0 },
-          }}
-        >
-          {(me.handInSight ?? []).map((card, i) => (
-            <GameCard
-              key={i}
-              card={card}
-              onClick={() => handleClickOthersCard(i)}
-            />
-          ))}
-        </Stack>
-        {G.phase === "videocam" && (
-          <DialogActions>
-            <Button onClick={() => moves.videocamConclude()}>OK</Button>
-          </DialogActions>
-        )}
-      </Dialog>
-
-      <Dialog open={showScores}>
-        <DialogContent>
-          <ScoreTable G={G} ctx={ctx} />
-        </DialogContent>
-        <DialogActions>
-          {playerID === me.outliarInSight ? (
-            <Button variant="contained" onClick={() => moves.nextRound()}>
-              {t("Next round")}
-            </Button>
-          ) : (
-            t("Waiting for next round...")
-          )}
-        </DialogActions>
-      </Dialog>
-    </Container>
-  );
-};
-
-export function Component() {
-  const enhancer = useEnhancer();
-
-  return (
     <I18nextProvider i18n={i18n}>
-      <Client game={game} board={GameBoard} enhancer={enhancer} />
+      <Container maxWidth="md" sx={{ height: "100%", padding: 1 }}>
+        <Stack sx={{ height: "100%" }}>
+          <PlayerGrid G={G} ctx={ctx} moves={moves} playerID={playerID} />
+          <Stack
+            sx={{
+              flexGrow: 1,
+              alignSelf: "center",
+              justifyContent: "center",
+              width: 256,
+            }}
+          >
+            {Object.entries(actionIcons).map(
+              ([action, icon]: [GameAction, React.ReactNode], actionIndex) => (
+                <Stack
+                  key={action}
+                  direction="row"
+                  sx={{ padding: 1, position: "relative" }}
+                >
+                  {icon}
+                  <Stack
+                    sx={{
+                      flexGrow: 1,
+                      minWidth: 0,
+                      flexDirection: "row",
+                      justifyContent: "space-evenly",
+                      alignItems: "center",
+                    }}
+                  >
+                    {ctx.playOrder.map(
+                      (id, index) =>
+                        G.pub[id].action === action && (
+                          <Box
+                            key={id}
+                            sx={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: "50%",
+                              backgroundColor: COLORS[index],
+                              ":first-of-type": { flexShrink: 0 },
+                            }}
+                          />
+                        )
+                    )}
+                  </Stack>
+                  {actionIndex === 0 && ActionIndicator}
+                </Stack>
+              )
+            )}
+          </Stack>
+          <Stack
+            sx={{
+              height: "48px",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <GameHint G={G} moves={moves} playerID={playerID} />
+          </Stack>
+          <Stack
+            direction="row"
+            sx={{
+              justifyContent: "center",
+              minHeight: 120,
+              "&>*:last-child": { flexShrink: 0 },
+            }}
+          >
+            {me.hand.map((card, i) => (
+              <GameCard
+                key={i}
+                card={card}
+                onClick={() => handleClickCard(i)}
+              />
+            ))}
+          </Stack>
+        </Stack>
+
+        <Dialog open={G.phase === "decide"}>
+          <DialogTitle>{t("Choose an action")}</DialogTitle>
+          <Grid container spacing={1} sx={{ paddingX: 2, paddingBottom: 2 }}>
+            {Object.entries(actionIcons).map(
+              ([action, icon]: [GameAction, React.ReactNode]) => (
+                <Grid item key={action} xs={4}>
+                  <Card elevation={me.action === action ? 4 : 0}>
+                    <CardActionArea
+                      disabled={me.action !== undefined}
+                      onClick={() => moves.decideAction(action)}
+                      sx={{ textAlign: "center", paddingY: 1 }}
+                    >
+                      <CardMedia>{icon}</CardMedia>
+                      {t(action[0].toUpperCase() + action.slice(1))}
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              )
+            )}
+          </Grid>
+        </Dialog>
+
+        <Dialog open={me.handInSight !== undefined}>
+          <DialogTitle>
+            {t("hand-of", {
+              player:
+                ctx.playerNames[G.players[playerID].target] ??
+                G.players[playerID].target,
+            })}
+          </DialogTitle>
+          <Stack
+            direction="row"
+            sx={{
+              margin: 2,
+              justifyContent: "center",
+              "&>*:last-child": { flexShrink: 0 },
+            }}
+          >
+            {(me.handInSight ?? []).map((card, i) => (
+              <GameCard
+                key={i}
+                card={card}
+                onClick={() => handleClickOthersCard(i)}
+              />
+            ))}
+          </Stack>
+          {G.phase === "videocam" && (
+            <DialogActions>
+              <Button onClick={() => moves.videocamConclude()}>OK</Button>
+            </DialogActions>
+          )}
+        </Dialog>
+
+        <Dialog open={showScores}>
+          <DialogContent>
+            <ScoreTable G={G} ctx={ctx} />
+          </DialogContent>
+          <DialogActions>
+            {playerID === me.outliarInSight ? (
+              <Button variant="contained" onClick={() => moves.nextRound()}>
+                {t("Next round")}
+              </Button>
+            ) : (
+              t("Waiting for next round...")
+            )}
+          </DialogActions>
+        </Dialog>
+      </Container>
     </I18nextProvider>
   );
-}
+};

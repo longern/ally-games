@@ -59,7 +59,14 @@ function range(end: number) {
   return Array.from({ length: end }, (_, i) => i);
 }
 
-function init({ ctx }: { ctx: Ctx }) {
+function omit<T, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
+  return Object.entries(obj).reduce((acc, [key, value]) => {
+    if (!keys.includes(key as K)) acc[key] = value;
+    return acc;
+  }, {} as Omit<T, K>);
+}
+
+function setup({ ctx }: { ctx: Ctx }): GameState {
   const realOutliar = ctx.playOrder[Math.floor(Math.random() * ctx.numPlayers)];
   const players = {};
   const pub = {};
@@ -107,7 +114,7 @@ function init({ ctx }: { ctx: Ctx }) {
     players,
     pub,
     winner: null,
-  } as GameState;
+  };
 }
 
 function conclude({ G }: { G: GameState }) {
@@ -153,9 +160,7 @@ function conclude({ G }: { G: GameState }) {
 }
 
 const game = createGame({
-  setup({ ctx }) {
-    return init({ ctx });
-  },
+  setup,
 
   phases: {
     decide: {
@@ -571,8 +576,7 @@ const game = createGame({
 
           if (G.extra >= ctx.numPlayers) G.extra -= ctx.numPlayers;
 
-          const { pub, extra, ...state } = init({ ctx });
-          Object.assign(G, state);
+          Object.assign(G, omit(setup({ ctx }), ["pub", "extra"]));
         },
       },
     },
@@ -580,7 +584,7 @@ const game = createGame({
 
   moves: {
     init({ G, ctx }) {
-      Object.assign(G, init({ ctx }));
+      Object.assign(G, setup({ ctx }));
     },
   },
 

@@ -11,13 +11,12 @@ import {
 } from "@mui/material";
 import React, { useCallback, useState } from "react";
 
-import { Client, GameBoardComponent } from "../Client";
+import { GameBoardComponent } from "../Client";
 import { createGame } from "../app/game";
-import { useEnhancer } from "../enhancer";
 
-const game = createGame({ setup: () => {}, moves: {} });
+export const game = createGame({ setup: () => {}, moves: {} });
 
-const GameBoard: GameBoardComponent<typeof game> = ({
+export const Board: GameBoardComponent<typeof game> = ({
   ctx,
   playerID,
   chatMessages,
@@ -116,9 +115,3 @@ const GameBoard: GameBoardComponent<typeof game> = ({
     </Stack>
   );
 };
-
-export function Component() {
-  const enhancer = useEnhancer();
-
-  return <Client game={game} board={GameBoard} enhancer={enhancer} />;
-}
