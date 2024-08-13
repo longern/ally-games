@@ -1,4 +1,17 @@
-import { Box, Button, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Dialog,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Stack,
+  TextField,
+  Toolbar,
+  Typography,
+} from "@mui/material";
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -12,6 +25,11 @@ import {
 } from "../app/lobby";
 import { getEnhancer } from "../app/lobbyMiddleware";
 import { useSetEnhancer } from "../enhancer";
+import {
+  Close as CloseIcon,
+  NavigateNext as NavigateNextIcon,
+  Settings as SettingsIcon,
+} from "@mui/icons-material";
 
 function Lobby() {
   const lobby = useAppSelector((state) => state.lobby.state);
@@ -71,8 +89,45 @@ function JoinRoom() {
   );
 }
 
+function SettingsDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const protocol = useAppSelector((state) => state.settings.protocol);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <Toolbar>
+        <Typography variant="h6">Settings</Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <IconButton onClick={onClose}>
+          <CloseIcon />
+        </IconButton>
+      </Toolbar>
+      <List
+        disablePadding
+        sx={{ "& .MuiListItemButton-root": { minHeight: "60px" } }}
+      >
+        <ListItem disablePadding>
+          <ListItemButton>
+            <ListItemText
+              primary="Protocol"
+              secondary={protocol}
+            ></ListItemText>
+            <NavigateNextIcon />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </Dialog>
+  );
+}
+
 function Home() {
   const [joiningRoom, setJoiningRoom] = React.useState(false);
+  const [showSettings, setShowSettings] = React.useState(false);
   const roomID = useAppSelector((state) => state.lobby.state.roomID);
   const dispatch = useAppDispatch();
 
@@ -90,26 +145,39 @@ function Home() {
       ) : joiningRoom ? (
         <JoinRoom />
       ) : (
-        <Stack spacing={3} sx={{ "&>.MuiButton-root": { width: "200px" } }}>
-          <Typography variant="h4" textAlign="center">
-            Ally Games
-          </Typography>
-          <Button
-            variant="contained"
+        <React.Fragment>
+          <Stack spacing={3} sx={{ "&>.MuiButton-root": { width: "200px" } }}>
+            <Typography variant="h4" textAlign="center">
+              Ally Games
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => dispatch(createLobby({}))}
+            >
+              Create Room
+            </Button>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => setJoiningRoom(true)}
+            >
+              Join Room
+            </Button>
+          </Stack>
+          <IconButton
             size="large"
-            onClick={() => dispatch(createLobby({}))}
+            sx={{ position: "absolute", top: 8, right: 8 }}
+            onClick={() => setShowSettings(true)}
           >
-            Create Room
-          </Button>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => setJoiningRoom(true)}
-          >
-            Join Room
-          </Button>
-        </Stack>
+            <SettingsIcon />
+          </IconButton>
+        </React.Fragment>
       )}
+      <SettingsDialog
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </Box>
   );
 }

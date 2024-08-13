@@ -3,9 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 
 import lobbySlice from "./lobby";
 import lobbyMiddleware from "./lobbyMiddleware";
+import settingsSlice from "./settings";
 
 const combinedReducer = combineReducers({
   lobby: lobbySlice.reducer,
+  settings: settingsSlice.reducer,
 });
 
 const store = configureStore({

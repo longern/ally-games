@@ -185,6 +185,4 @@ const lobbySlice = createSlice({
 
 const { setLobbyState, setPlayerID } = lobbySlice.actions;
 
-export type LobbyAction = typeof lobbySlice.actions;
-
 export default lobbySlice;

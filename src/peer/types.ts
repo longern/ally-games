@@ -11,11 +11,11 @@ interface ConnectionEventMap {
 export interface Connection {
   addEventListener: <K extends keyof ConnectionEventMap>(
     type: K,
-    callback: (event: ConnectionEventMap[K]) => any
+    callback: (event: ConnectionEventMap[K]) => void
   ) => void;
   removeEventListener: <K extends keyof ConnectionEventMap>(
     type: K,
-    callback: (event: ConnectionEventMap[K]) => any
+    callback: (event: ConnectionEventMap[K]) => void
   ) => void;
   send: (data: string) => void;
   close: () => void;
