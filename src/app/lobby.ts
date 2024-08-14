@@ -2,19 +2,19 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 import { createPeer as defaultCreatePeer } from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
+import { connections } from "./lobbyMiddleware";
 import { AppDispatch, AppState } from "./store";
-import { connections, createEnhancerFromState } from "./lobbyMiddleware";
 
 type LobbyThunk<ThunkArg = unknown> = (
   arg: ThunkArg,
   thunkAPI: { dispatch: AppDispatch; getState: () => AppState }
 ) => any;
 
-export const lobbyThunks: Record<string, LobbyThunk> = {};
+const lobbyThunks: Record<string, LobbyThunk> = {};
 
 const createLobbyThunk = function <ThunkArg>(
   type: string,
-  thunk: LobbyThunk<any>
+  thunk: LobbyThunk<ThunkArg>
 ) {
   lobbyThunks[type] = thunk;
   return (arg?: ThunkArg) =>
@@ -143,10 +143,7 @@ export const getReady = createLobbyThunk("lobby/ready", async (_, thunkAPI) => {
 export const startGame = createLobbyThunk(
   "lobby/start",
   async (_, thunkAPI) => {
-    createEnhancerFromState(thunkAPI.getState());
-    thunkAPI.dispatch(
-      lobbySlice.actions.setLobbyState({ state: { matchRunning: true } })
-    );
+    thunkAPI.dispatch(setLobbyState({ state: { matchRunning: true } }));
   }
 );
 

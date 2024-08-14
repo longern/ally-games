@@ -5,6 +5,7 @@ export interface Peer {
 
 interface ConnectionEventMap {
   message: MessageEvent<string>;
+  error: ErrorEvent;
   close: CloseEvent;
 }
 

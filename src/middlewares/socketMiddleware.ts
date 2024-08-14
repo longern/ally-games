@@ -27,6 +27,10 @@ export function createClientMiddleware({
       store.dispatch(setPlayerID(playerID));
       store.dispatch(setCtx(ctx));
       if (isHost) store.dispatch(setup(ctx));
+      else
+        Object.values(connections)[0].send(
+          JSON.stringify({ type: "client/syncGameState" })
+        );
     });
 
     const cleanup = (
@@ -36,7 +40,14 @@ export function createClientMiddleware({
       Object.entries(connections).map(([playerID, connection]) => {
         const handler = (event: MessageEvent) => {
           const action = JSON.parse(event.data);
-          if (action.type === "client/setGameState")
+          if (action.type === "client/syncGameState")
+            connection.send(
+              JSON.stringify({
+                type: "client/setGameState",
+                payload: store.getState().state,
+              })
+            );
+          else if (action.type === "client/setGameState")
             return store.dispatch(action);
           if (
             Array.isArray(action.payload) &&

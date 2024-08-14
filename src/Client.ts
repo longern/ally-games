@@ -34,7 +34,9 @@ export type GameBoardProps<G> = G extends Game<infer S, infer M>
     }
   : never;
 
-export type GameBoardComponent<G> = (props: GameBoardProps<G>) => ReactNode;
+export type GameBoardComponent<G = Game> = (
+  props: GameBoardProps<G>
+) => ReactNode;
 
 export function Client<
   S = any,

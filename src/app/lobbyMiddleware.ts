@@ -1,18 +1,14 @@
-import { applyMiddleware, Middleware, StoreEnhancer } from "@reduxjs/toolkit";
+import { applyMiddleware, Middleware } from "@reduxjs/toolkit";
 
-import { AppState } from "./store";
+import { createClientMiddleware } from "../middlewares/socketMiddleware";
 import { Connection } from "../peer/types";
-import { createClientMiddleware } from "../middlewares/socketEnhancer";
+import { AppState } from "./store";
 
 export const connections: Record<string, Connection> = {};
 
-let _enhancer: StoreEnhancer = null;
-
-export const getEnhancer = () => _enhancer;
-
-export function createEnhancerFromState(state: AppState) {
-  const { state: lobby, playerID } = state.lobby;
-  _enhancer = applyMiddleware(
+export function createEnhancerFromLobby(lobbyState: AppState["lobby"]) {
+  const { state: lobby, playerID } = lobbyState;
+  const enhancer = applyMiddleware(
     createClientMiddleware({
       ctx: {
         numPlayers: lobby.playOrder.length,
@@ -29,6 +25,7 @@ export function createEnhancerFromState(state: AppState) {
       connections: connections,
     })
   );
+  return enhancer;
 }
 
 const lobbyMiddleware: Middleware<{}, AppState> = (store) => {
@@ -42,12 +39,7 @@ const lobbyMiddleware: Middleware<{}, AppState> = (store) => {
 
     if (playerID !== null && playerID !== lobby.host) {
       if (["lobby/setLobbyState", "lobby/setPlayerID"].includes(actionType)) {
-        const result = next(action);
-        const state = store.getState();
-        if (state.lobby.state.matchRunning && !lobby.matchRunning) {
-          createEnhancerFromState(state);
-        }
-        return result;
+        return next(action);
       }
       connections[lobby.host].send(JSON.stringify(action));
       return;

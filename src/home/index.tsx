@@ -13,7 +13,6 @@ import {
   Typography,
 } from "@mui/material";
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { useAppDispatch, useAppSelector } from "../app/store";
 import {
@@ -23,30 +22,27 @@ import {
   joinLobby,
   startGame,
 } from "../app/lobby";
-import { getEnhancer } from "../app/lobbyMiddleware";
-import { useSetEnhancer } from "../enhancer";
+import { createEnhancerFromLobby } from "../app/lobbyMiddleware";
 import {
   Close as CloseIcon,
   NavigateNext as NavigateNextIcon,
   Settings as SettingsIcon,
 } from "@mui/icons-material";
+import { lazyGameComponents } from "./router";
+import { Client, GameBoardComponent } from "../Client";
+import { Game } from "../app/game";
+import { StoreEnhancer } from "@reduxjs/toolkit";
+import { Peer } from "../peer/types";
+import { createPeer as createPeerBroadcastChannel } from "../peer/broadcastChannel";
 
 function Lobby() {
   const lobby = useAppSelector((state) => state.lobby.state);
   const playerID = useAppSelector((state) => state.lobby.playerID);
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const setEnhancer = useSetEnhancer();
 
   useEffect(() => {
     dispatch(chooseGame("block-blast"));
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!lobby.matchRunning) return;
-    setEnhancer({ current: getEnhancer() });
-    navigate(`/${lobby.game}`);
-  }, [lobby.game, lobby.matchRunning, navigate, setEnhancer]);
 
   return (
     <Stack spacing={2}>
@@ -125,13 +121,64 @@ function SettingsDialog({
   );
 }
 
+function LazyClient({
+  gameComponents,
+}: {
+  gameComponents: () => Promise<{ game: Game; Board: GameBoardComponent }>;
+}) {
+  const [component, setComponent] = React.useState<{
+    game: Game;
+    Board: GameBoardComponent;
+  } | null>(null);
+  const [enhancer, setEnhancer] = React.useState<StoreEnhancer | null>(null);
+  const lobbyState = useAppSelector((state) => state.lobby);
+
+  useEffect(() => {
+    setEnhancer(() => createEnhancerFromLobby(lobbyState));
+  }, [lobbyState]);
+
+  useEffect(() => {
+    gameComponents().then(setComponent);
+  }, [gameComponents]);
+
+  return enhancer && component ? (
+    <Client game={component.game} board={component.Board} enhancer={enhancer} />
+  ) : null;
+}
+
+function useCreatePeerRef() {
+  const createPeerRef = React.useRef<(() => Peer) | undefined>(undefined);
+  const protocol = useAppSelector((state) => state.settings.protocol);
+
+  useEffect(() => {
+    switch (protocol) {
+      case "broadcast-channel":
+        createPeerRef.current = createPeerBroadcastChannel;
+        break;
+      case "webrtc":
+        createPeerRef.current = () => {
+          throw new Error("Not implemented");
+        };
+        break;
+    }
+  }, [protocol]);
+  return createPeerRef;
+}
+
 function Home() {
   const [joiningRoom, setJoiningRoom] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const roomID = useAppSelector((state) => state.lobby.state.roomID);
+  const matchRunning = useAppSelector(
+    (state) => state.lobby.state.matchRunning
+  );
+  const gameName = useAppSelector((state) => state.lobby.state.game);
+  const createPeerRef = useCreatePeerRef();
   const dispatch = useAppDispatch();
 
-  return (
+  return matchRunning ? (
+    <LazyClient gameComponents={lazyGameComponents[`/${gameName}`]} />
+  ) : (
     <Box
       sx={{
         height: "100%",
@@ -153,7 +200,9 @@ function Home() {
             <Button
               variant="contained"
               size="large"
-              onClick={() => dispatch(createLobby({}))}
+              onClick={() =>
+                dispatch(createLobby({ createPeer: createPeerRef.current }))
+              }
             >
               Create Room
             </Button>

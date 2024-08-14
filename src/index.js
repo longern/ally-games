@@ -6,12 +6,10 @@ import {
 } from "@mui/material";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { RouterProvider } from "react-router-dom";
 import { Provider } from "react-redux";
 
-import EnhancerProvider from "./enhancer";
 import store from "./app/store";
-import router from "./router";
+import Home from "./home";
 
 const theme = createTheme({
   typography: { button: { textTransform: "none" } },
@@ -37,11 +35,9 @@ root.render(
   <React.StrictMode>
     <Provider store={store}>
       <ThemeProvider theme={theme}>
-        <EnhancerProvider>
-          <CssBaseline />
-          {globalStyles}
-          <RouterProvider router={router} />
-        </EnhancerProvider>
+        <CssBaseline />
+        {globalStyles}
+        <Home />
       </ThemeProvider>
     </Provider>
   </React.StrictMode>

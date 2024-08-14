@@ -10,7 +10,7 @@ const DEFAULT_PROTOCOL =
   process.env.NODE_ENV === "production" ? "webrtc" : "broadcast-channel";
 
 const defaultSettings = {
-  protocol: DEFAULT_PROTOCOL,
+  protocol: DEFAULT_PROTOCOL as typeof DEFAULT_PROTOCOL,
 };
 
 const initialState = {
