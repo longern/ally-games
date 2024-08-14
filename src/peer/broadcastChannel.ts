@@ -17,7 +17,7 @@ function adaptor(broadcastChannel: BroadcastChannel): Connection {
   };
 }
 
-export function createPeer() {
+export function createPeer(): Peer {
   return {
     open({ onConnection }) {
       const methods = {
@@ -46,7 +46,7 @@ export function createPeer() {
         );
       });
 
-      return channelName;
+      return Promise.resolve(channelName);
     },
 
     connect(channelName) {
@@ -66,5 +66,5 @@ export function createPeer() {
         setTimeout(() => reject(new Error("timeout")), 5000);
       });
     },
-  } as Peer;
+  };
 }

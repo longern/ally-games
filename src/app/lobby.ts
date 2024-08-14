@@ -30,7 +30,7 @@ export const createLobby = createLobbyThunk(
   async ({ createPeer }: { createPeer?: () => Peer }, thunkAPI) => {
     createPeer = createPeer || defaultCreatePeer;
     const peer = createPeer();
-    const roomID = peer.open({
+    const roomID = await peer.open({
       onConnection: (connection) => {
         const clientID = Math.random().toString(36).substring(7);
         connections[clientID] = connection;

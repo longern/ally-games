@@ -1,20 +1,17 @@
+import { Settings as SettingsIcon } from "@mui/icons-material";
 import {
   Box,
   Button,
-  Dialog,
   IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
   Stack,
   TextField,
-  Toolbar,
   Typography,
 } from "@mui/material";
+import { StoreEnhancer } from "@reduxjs/toolkit";
 import React, { useEffect } from "react";
 
-import { useAppDispatch, useAppSelector } from "../app/store";
+import { Client, GameBoardComponent } from "../Client";
+import { Game } from "../app/game";
 import {
   chooseGame,
   createLobby,
@@ -23,17 +20,12 @@ import {
   startGame,
 } from "../app/lobby";
 import { createEnhancerFromLobby } from "../app/lobbyMiddleware";
-import {
-  Close as CloseIcon,
-  NavigateNext as NavigateNextIcon,
-  Settings as SettingsIcon,
-} from "@mui/icons-material";
-import { lazyGameComponents } from "./router";
-import { Client, GameBoardComponent } from "../Client";
-import { Game } from "../app/game";
-import { StoreEnhancer } from "@reduxjs/toolkit";
-import { Peer } from "../peer/types";
+import { useAppDispatch, useAppSelector } from "../app/store";
 import { createPeer as createPeerBroadcastChannel } from "../peer/broadcastChannel";
+import { Peer } from "../peer/types";
+import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
+import SettingsDialog from "./SettingsDialog";
+import { lazyGameComponents } from "./router";
 
 function Lobby() {
   const lobby = useAppSelector((state) => state.lobby.state);
@@ -64,12 +56,13 @@ function Lobby() {
 
 function JoinRoom() {
   const [roomID, setRoomID] = React.useState("");
+  const createPeerRef = useCreatePeerRef();
 
   const dispatch = useAppDispatch();
 
   const handleJoin = async () => {
     if (!roomID) return;
-    dispatch(joinLobby({ roomID }));
+    dispatch(joinLobby({ roomID, createPeer: createPeerRef.current }));
   };
 
   return (
@@ -82,42 +75,6 @@ function JoinRoom() {
       />
       <Button onClick={handleJoin}>Join</Button>
     </Stack>
-  );
-}
-
-function SettingsDialog({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  const protocol = useAppSelector((state) => state.settings.protocol);
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <Toolbar>
-        <Typography variant="h6">Settings</Typography>
-        <Box sx={{ flexGrow: 1 }} />
-        <IconButton onClick={onClose}>
-          <CloseIcon />
-        </IconButton>
-      </Toolbar>
-      <List
-        disablePadding
-        sx={{ "& .MuiListItemButton-root": { minHeight: "60px" } }}
-      >
-        <ListItem disablePadding>
-          <ListItemButton>
-            <ListItemText
-              primary="Protocol"
-              secondary={protocol}
-            ></ListItemText>
-            <NavigateNextIcon />
-          </ListItemButton>
-        </ListItem>
-      </List>
-    </Dialog>
   );
 }
 
@@ -156,9 +113,7 @@ function useCreatePeerRef() {
         createPeerRef.current = createPeerBroadcastChannel;
         break;
       case "webrtc":
-        createPeerRef.current = () => {
-          throw new Error("Not implemented");
-        };
+        createPeerRef.current = createPeerWebRTCFactory();
         break;
     }
   }, [protocol]);
@@ -215,6 +170,7 @@ function Home() {
             </Button>
           </Stack>
           <IconButton
+            aria-label="Settings"
             size="large"
             sx={{ position: "absolute", top: 8, right: 8 }}
             onClick={() => setShowSettings(true)}

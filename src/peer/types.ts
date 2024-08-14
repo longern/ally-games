@@ -1,5 +1,7 @@
 export interface Peer {
-  open: (options: { onConnection: (connection: Connection) => void }) => string;
+  open: (options: {
+    onConnection: (connection: Connection) => void;
+  }) => Promise<string>;
   connect: (roomID: string) => Promise<Connection>;
 }
 
