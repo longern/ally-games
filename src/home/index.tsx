@@ -21,7 +21,7 @@ import {
 } from "../app/lobby";
 import { createEnhancerFromLobby } from "../app/lobbyMiddleware";
 import { useAppDispatch, useAppSelector } from "../app/store";
-import { createPeer as createPeerBroadcastChannel } from "../peer/broadcastChannel";
+import broadcastChannelPeer from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
 import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
 import SettingsDialog from "./SettingsDialog";
@@ -62,7 +62,7 @@ function JoinRoom() {
 
   const handleJoin = async () => {
     if (!roomID) return;
-    dispatch(joinLobby({ roomID, createPeer: createPeerRef.current }));
+    dispatch(joinLobby({ roomID, Peer: createPeerRef.current }));
   };
 
   return (
@@ -104,13 +104,13 @@ function LazyClient({
 }
 
 function useCreatePeerRef() {
-  const createPeerRef = React.useRef<(() => Peer) | undefined>(undefined);
+  const createPeerRef = React.useRef<Peer | undefined>(undefined);
   const protocol = useAppSelector((state) => state.settings.protocol);
 
   useEffect(() => {
     switch (protocol) {
       case "broadcast-channel":
-        createPeerRef.current = createPeerBroadcastChannel;
+        createPeerRef.current = broadcastChannelPeer;
         break;
       case "webrtc":
         createPeerRef.current = createPeerWebRTCFactory();
@@ -156,7 +156,7 @@ function Home() {
               variant="contained"
               size="large"
               onClick={() =>
-                dispatch(createLobby({ createPeer: createPeerRef.current }))
+                dispatch(createLobby({ Peer: createPeerRef.current }))
               }
             >
               Create Room

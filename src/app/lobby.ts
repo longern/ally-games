@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-import { createPeer as defaultCreatePeer } from "../peer/broadcastChannel";
+import broadcastChannelPeer from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
 import { connections } from "./lobbyMiddleware";
 import { AppDispatch, AppState } from "./store";
@@ -27,11 +27,12 @@ const createLobbyThunk = function <ThunkArg>(
 
 export const createLobby = createLobbyThunk(
   "lobby/create",
-  async ({ createPeer }: { createPeer?: () => Peer }, thunkAPI) => {
-    createPeer = createPeer || defaultCreatePeer;
-    const peer = createPeer();
-    const roomID = await peer.open({
-      onConnection: (connection) => {
+  async ({ Peer }: { Peer?: Peer }, thunkAPI) => {
+    Peer = Peer || broadcastChannelPeer;
+    const peer = Peer.listen();
+    const roomID = await peer.id;
+    (async () => {
+      for await (const connection of peer.connections) {
         const clientID = Math.random().toString(36).substring(7);
         connections[clientID] = connection;
         connection.addEventListener("message", (event) => {
@@ -66,8 +67,8 @@ export const createLobby = createLobbyThunk(
         connection.addEventListener("close", () => {
           delete connections[clientID];
         });
-      },
-    });
+      }
+    })();
     const host = Math.random().toString(36).substring(7);
     thunkAPI.dispatch(
       setLobbyState({
@@ -87,13 +88,9 @@ export const createLobby = createLobbyThunk(
 
 export const joinLobby = createLobbyThunk(
   "lobby/joinLobby",
-  async (
-    { roomID, createPeer }: { roomID: string; createPeer?: () => Peer },
-    thunkAPI
-  ) => {
-    createPeer = createPeer || defaultCreatePeer;
-    const peer = createPeer();
-    const connection = await peer.connect(roomID);
+  async ({ roomID, Peer }: { roomID: string; Peer?: Peer }, thunkAPI) => {
+    Peer = Peer || broadcastChannelPeer;
+    const connection = await Peer.connect(roomID);
     connection.addEventListener("close", () => {
       delete connections[roomID];
       thunkAPI.dispatch(lobbySlice.actions.setLobbyState({ state: null }));

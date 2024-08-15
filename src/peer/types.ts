@@ -1,7 +1,9 @@
 export interface Peer {
-  open: (options: {
-    onConnection: (connection: Connection) => void;
-  }) => Promise<string>;
+  listen: () => {
+    id: Promise<string>;
+    connections: AsyncGenerator<Connection>;
+    abort: () => void;
+  };
   connect: (roomID: string) => Promise<Connection>;
 }
 
