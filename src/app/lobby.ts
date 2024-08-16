@@ -38,7 +38,12 @@ export const createLobby = createLobbyThunk(
         connection.addEventListener("message", (event) => {
           const message = JSON.parse(event.data);
           const type = message.type;
-          if (type === "lobby/joinMatch") {
+          if (type === "lobby/pong") {
+            const ping = Math.round(
+              (performance.now() - message.payload.timestamp) / 2
+            );
+            thunkAPI.dispatch(setPing({ playerID: clientID, ping }));
+          } else if (type === "lobby/joinMatch") {
             thunkAPI.dispatch(
               setLobbyState({
                 state: {
@@ -69,6 +74,18 @@ export const createLobby = createLobbyThunk(
         });
       }
     })();
+
+    setInterval(() => {
+      for (const connection of Object.values(connections)) {
+        const message = {
+          type: "lobby/ping",
+          payload: { timestamp: performance.now() },
+        };
+        connection.send(JSON.stringify(message));
+      }
+      thunkAPI.dispatch(setLobbyState({ state: {} }));
+    }, 3000);
+
     const host = Math.random().toString(36).substring(7);
     thunkAPI.dispatch(
       setLobbyState({
@@ -93,11 +110,15 @@ export const joinLobby = createLobbyThunk(
     const connection = await Peer.connect(roomID);
     connection.addEventListener("close", () => {
       delete connections[roomID];
-      thunkAPI.dispatch(lobbySlice.actions.setLobbyState({ state: null }));
+      thunkAPI.dispatch(setLobbyState({ state: null }));
     });
     connection.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
-      if (message.type === "lobby/setPlayerID") {
+      if (message.type === "lobby/ping") {
+        connection.send(
+          JSON.stringify({ type: "lobby/pong", payload: message.payload })
+        );
+      } else if (message.type === "lobby/setPlayerID") {
         thunkAPI.dispatch(setPlayerID(message.payload));
       } else if (message.type === "lobby/setLobbyState") {
         thunkAPI.dispatch(setLobbyState(message.payload));
@@ -113,7 +134,7 @@ export const joinLobby = createLobbyThunk(
 export const chooseGame = createLobbyThunk(
   "lobby/chooseGame",
   async (game: string, thunkAPI) => {
-    thunkAPI.dispatch(lobbySlice.actions.setLobbyState({ state: { game } }));
+    thunkAPI.dispatch(setLobbyState({ state: { game } }));
   }
 );
 
@@ -121,7 +142,7 @@ export const getReady = createLobbyThunk("lobby/ready", async (_, thunkAPI) => {
   const state = thunkAPI.getState();
   const playerID = state.lobby.playerID;
   thunkAPI.dispatch(
-    lobbySlice.actions.setLobbyState({
+    setLobbyState({
       state: {
         players: Object.fromEntries(
           Object.entries(state.lobby.state.players).map(([id, player]) => [
@@ -150,7 +171,7 @@ const initialState = {
     game: "",
     players: {} as Record<
       string,
-      { playerID: string; playerName: string; ready: boolean }
+      { playerID: string; playerName: string; ping?: number; ready: boolean }
     >,
     playOrder: [] as string[],
     matchRunning: false,
@@ -171,12 +192,15 @@ const lobbySlice = createSlice({
     ) {
       Object.assign(state.state, action.payload.state);
     },
+    setPing(state, action: PayloadAction<{ playerID: string; ping: number }>) {
+      state.state.players[action.payload.playerID].ping = action.payload.ping;
+    },
     setPlayerID(state, action: PayloadAction<string>) {
       state.playerID = action.payload;
     },
   },
 });
 
-const { setLobbyState, setPlayerID } = lobbySlice.actions;
+const { setLobbyState, setPing, setPlayerID } = lobbySlice.actions;
 
 export default lobbySlice;

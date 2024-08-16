@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import lobbySlice from "./lobby";
 import lobbyMiddleware from "./lobbyMiddleware";
-import settingsSlice from "./settings";
+import settingsSlice, { localStorageWriter } from "./settings";
 
 const combinedReducer = combineReducers({
   lobby: lobbySlice.reducer,
@@ -22,5 +22,7 @@ export type AppDispatch = typeof store.dispatch;
 
 export const useAppSelector = useSelector.withTypes<AppState>();
 export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
+
+store.subscribe(() => localStorageWriter(store.getState().settings));
 
 export default store;

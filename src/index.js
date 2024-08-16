@@ -3,17 +3,14 @@ import {
   CssBaseline,
   GlobalStyles,
   ThemeProvider,
+  useMediaQuery,
 } from "@mui/material";
-import React from "react";
+import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
 
 import store from "./app/store";
-import Home from "./home";
-
-const theme = createTheme({
-  typography: { button: { textTransform: "none" } },
-});
+import App from "./home/App";
 
 const globalStyles = (
   <GlobalStyles
@@ -30,15 +27,32 @@ const globalStyles = (
   />
 );
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
-  <React.StrictMode>
+function Root() {
+  const preferDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
+
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: { mode: preferDarkMode ? "dark" : "light" },
+        typography: { button: { textTransform: "none" } },
+      }),
+    [preferDarkMode]
+  );
+
+  return (
     <Provider store={store}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {globalStyles}
-        <Home />
+        <App />
       </ThemeProvider>
     </Provider>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
+  <React.StrictMode>
+    <Root />
   </React.StrictMode>
 );

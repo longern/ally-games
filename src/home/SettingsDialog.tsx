@@ -15,7 +15,7 @@ import React from "react";
 import { useAppSelector } from "../app/store";
 
 import {
-  Close as CloseIcon,
+  NavigateBefore as NavigateBeforeIcon,
   NavigateNext as NavigateNextIcon,
 } from "@mui/icons-material";
 
@@ -30,16 +30,8 @@ function SettingsDialog({
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
-      <Toolbar disableGutters>
-        <Container
-          maxWidth="md"
-          sx={{
-            height: "100%",
-            padding: 0,
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
+      <Container maxWidth="md" sx={{ padding: 0 }}>
+        <Toolbar disableGutters sx={{ height: "60px" }}>
           <Box
             sx={{
               height: "100%",
@@ -50,15 +42,15 @@ function SettingsDialog({
             }}
           >
             <IconButton aria-label="Close" size="large" onClick={onClose}>
-              <CloseIcon />
+              <NavigateBeforeIcon />
             </IconButton>
           </Box>
           <Box sx={{ flexGrow: 1 }} />
           <Typography variant="h6">Settings</Typography>
           <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ height: "100%", aspectRatio: "1 / 1" }} />
-        </Container>
-      </Toolbar>
+        </Toolbar>
+      </Container>
       <Divider />
       <Container maxWidth="md" sx={{ padding: 0 }}>
         <List

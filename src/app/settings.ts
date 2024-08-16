@@ -11,6 +11,7 @@ const DEFAULT_PROTOCOL =
 
 const defaultSettings = {
   protocol: DEFAULT_PROTOCOL as typeof DEFAULT_PROTOCOL,
+  nickname: "",
 };
 
 const initialState = {
@@ -26,7 +27,7 @@ const settingsSlice = createSlice({
       state,
       action: PayloadAction<{ value: Partial<typeof initialState> }>
     ) {
-      Object.assign(state, action.payload);
+      Object.assign(state, action.payload.value);
     },
   },
 });
@@ -46,5 +47,7 @@ export function localStorageWriter(slice: typeof initialState) {
     JSON.stringify(defaultsRemoved)
   );
 }
+
+export const { setSettings } = settingsSlice.actions;
 
 export default settingsSlice;

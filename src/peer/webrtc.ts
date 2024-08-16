@@ -67,6 +67,38 @@ function getRemoteCaller<M extends object>(ws: WebSocket) {
   });
 }
 
+function signalMessageHandler(
+  remoteCaller: FlarePeerClient,
+  onConnection: (connection: Connection) => void
+) {
+  return async (message: AsyncReturnType<FlarePeerClient["poll"]>[number]) => {
+    const { type, source, content } = message;
+    switch (type) {
+      case "offer": {
+        const connection = new RTCPeerConnection();
+        await connection.setRemoteDescription({ type: "offer", sdp: content });
+        const answer = await connection.createAnswer();
+        await connection.setLocalDescription(answer);
+        const { sdp } = await waitICEGathering(connection);
+        remoteCaller.send({ type: "answer", id: source, content: sdp });
+        connection.addEventListener("datachannel", (event) => {
+          onConnection({
+            send: (data: string) => event.channel.send(data),
+            addEventListener: event.channel.addEventListener.bind(
+              event.channel
+            ),
+            removeEventListener: event.channel.removeEventListener.bind(
+              event.channel
+            ),
+            close: () => connection.close(),
+          });
+        });
+        break;
+      }
+    }
+  };
+}
+
 export const createPeerFactory: (options?: {
   signalServerURL?: string;
   rtcConfiguration?: RTCConfiguration;
@@ -99,57 +131,23 @@ export const createPeerFactory: (options?: {
       const remoteCaller = getRemoteCaller<FlarePeerClient>(ws);
       let interval: ReturnType<typeof setInterval>;
 
+      async function pollMessages() {
+        const messages = await remoteCaller.poll().catch(() => []);
+        messages.forEach(
+          signalMessageHandler(remoteCaller, connectionResolver)
+        );
+      }
+
       ws.addEventListener("open", async () => {
         const { id } = await remoteCaller.open(undefined);
         idPromiseResolver(id);
 
-        interval = setInterval(async () => {
-          const messages = await remoteCaller
-            .poll()
-            .catch(() => [] as AsyncReturnType<FlarePeerClient["poll"]>);
-          messages.forEach(async (message) => {
-            const { type, source, content } = message;
-            switch (type) {
-              case "offer": {
-                const connection = new RTCPeerConnection();
-                await connection.setRemoteDescription({
-                  type: "offer",
-                  sdp: content,
-                });
-                const answer = await connection.createAnswer();
-                await connection.setLocalDescription(answer);
-                const { sdp } = await waitICEGathering(connection);
-                remoteCaller.send({
-                  type: "answer",
-                  id: source,
-                  content: sdp,
-                });
-                connection.addEventListener("datachannel", (event) => {
-                  connectionResolver({
-                    send: (data: string) => event.channel.send(data),
-                    addEventListener: event.channel.addEventListener.bind(
-                      event.channel
-                    ),
-                    removeEventListener: event.channel.removeEventListener.bind(
-                      event.channel
-                    ),
-                    close: () => connection.close(),
-                  });
-                });
-                break;
-              }
-            }
-          });
-        }, 5000);
+        interval = setInterval(pollMessages, 5000);
 
-        ws.addEventListener("close", () => {
-          clearInterval(interval);
-        });
+        ws.addEventListener("close", () => clearInterval(interval));
       });
 
-      abortController.signal.addEventListener("abort", () => {
-        ws.close();
-      });
+      abortController.signal.onabort = () => ws.close();
 
       return {
         id: idPromise,
@@ -172,7 +170,7 @@ export const createPeerFactory: (options?: {
       const { sdp } = await waitICEGathering(peerConnection);
       remoteCaller.send({ type: "offer", id: channelName, content: sdp });
 
-      setInterval(async () => {
+      const interval = setInterval(async () => {
         const messages = await remoteCaller.poll().catch(() => []);
         for (const message of messages) {
           const { type, source, content } = message;
@@ -191,6 +189,7 @@ export const createPeerFactory: (options?: {
 
       return new Promise((resolve) => {
         dataChannel.addEventListener("open", () => {
+          clearInterval(interval);
           resolve({
             send: (data) => dataChannel.send(data),
             addEventListener: dataChannel.addEventListener.bind(dataChannel),
