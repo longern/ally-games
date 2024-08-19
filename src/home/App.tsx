@@ -20,7 +20,9 @@ function LazyClient({
     game: Game;
     Board: GameBoardComponent;
   } | null>(null);
-  const [enhancer, setEnhancer] = React.useState<StoreEnhancer | null>(null);
+  const [enhancer, setEnhancer] = React.useState<StoreEnhancer | undefined>(
+    undefined
+  );
   const lobbyState = useAppSelector((state) => state.lobby);
   const lobbyStateRef = React.useRef(lobbyState);
 

@@ -4,6 +4,7 @@ import {
   createAction,
   createSlice,
   Dispatch,
+  MiddlewareAPI,
   PayloadAction,
   StoreEnhancer,
 } from "@reduxjs/toolkit";
@@ -81,8 +82,21 @@ export type AppState<GameState = any> = {
   chatMessages: any[];
 };
 
+export const setup = Object.assign(
+  (ctx: Ctx) => {
+    return Object.assign(
+      (dispatch: Dispatch<BasicAppActions>) => {
+        dispatch(clientActions.gameSetup(ctx));
+        return () => {};
+      },
+      { type: setup.type }
+    );
+  },
+  { type: "client/setup" as const }
+);
+
 const clientActions = {
-  setup: createAction<Ctx, "client/setup">("client/setup"),
+  gameSetup: createAction<Ctx, "client/gameSetup">("client/gameSetup"),
   setCtx: createAction<Ctx, "client/setCtx">("client/setCtx"),
   setPlayerID: createAction<string, "client/setPlayerID">("client/setPlayerID"),
   setGameState: createAction<any, "client/setGameState">("client/setGameState"),
@@ -90,10 +104,10 @@ const clientActions = {
     [{ playerID: string }, any],
     "client/sendChatMessage"
   >("client/sendChatMessage"),
-  reset: createAction("client/reset"),
 };
 
-export const { setup, setCtx, setPlayerID, sendChatMessage } = clientActions;
+export const { gameSetup, setCtx, setPlayerID, setGameState, sendChatMessage } =
+  clientActions;
 
 type Entries<T> = {
   [K in keyof T]: [K, T[K]];
@@ -135,7 +149,7 @@ function createGameSlice<G extends Game>({ game }: { game: G }) {
     } as AppState<S>,
     reducers: gameReducers,
     extraReducers: (builder) => {
-      builder.addCase(clientActions.setup, (state, action) => {
+      builder.addCase(clientActions.gameSetup, (state, action) => {
         state.ctx = action.payload;
         state.state = game.setup({ ctx: action.payload });
       });
@@ -171,10 +185,19 @@ type ActionCreatorsFromGame<G extends Game> = G extends Game<any, infer M>
   : never;
 
 type ValueOf<T> = T[keyof T];
-export type AppActions<G extends Game = Game<any, {}>> =
+
+type BasicAppActions<G extends Game = Game<any, {}>> =
   | ReturnType<ValueOf<typeof clientActions>>
   | ActionCreatorsFromGame<G>;
+
+export type AppActions<G extends Game = Game<any, {}>> =
+  | BasicAppActions<G>
+  | ReturnType<typeof setup>;
 export type AppDispatch<G extends Game = Game> = Dispatch<AppActions<G>>;
+
+export type AppMiddleware = (
+  store: MiddlewareAPI<AppDispatch, AppState>
+) => (next: (action: unknown) => unknown) => (action: AppActions) => unknown;
 
 export function createGameStore<G extends Game>({
   game,
@@ -187,7 +210,7 @@ export function createGameStore<G extends Game>({
   const store = configureStore({
     reducer: slice.reducer,
     enhancers: (getDefaultEnhancers) =>
-      getDefaultEnhancers().concat(enhancer ? [enhancer] : []),
+      getDefaultEnhancers().prepend(enhancer ? [enhancer] : []),
   });
 
   return { actions: slice.actions as unknown as AppActions<G>, store };

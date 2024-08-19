@@ -99,12 +99,14 @@ function signalMessageHandler(
   };
 }
 
+const DEFAULT_SIGNAL_SERVER_URL = "wss://peer.longern.com";
+
 export const createPeerFactory: (options?: {
   signalServerURL?: string;
   rtcConfiguration?: RTCConfiguration;
 }) => Peer = (options) => {
   options = options || {};
-  const signalServerURL = options.signalServerURL || "wss://peer.longern.com";
+  const signalServerURL = options.signalServerURL || DEFAULT_SIGNAL_SERVER_URL;
 
   return {
     listen() {

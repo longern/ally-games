@@ -1,4 +1,4 @@
-import { StoreEnhancer } from "@reduxjs/toolkit";
+import { StoreEnhancer, ThunkDispatch, UnknownAction } from "@reduxjs/toolkit";
 import {
   ReactNode,
   createElement,
@@ -17,7 +17,9 @@ import {
   GameMoveFunctions,
   createGameStore,
   sendChatMessage as sendChatMessageAction,
+  setup,
 } from "./app/game";
+import { AppState } from "./app/store";
 
 export type GameBoardProps<G> = G extends Game<infer S, infer M>
   ? {
@@ -56,13 +58,20 @@ export function Client<
 
   const [state, setState] = useState(store.getState());
 
-  const dispatch: AppDispatch<Game<S, M>> = useMemo(
-    () => store.dispatch,
+  const dispatch = useMemo(
+    () => store.dispatch as AppDispatch<Game<S, M>>,
     [store]
   );
 
   useEffect(() => {
-    return store.subscribe(() => setState(store.getState()));
+    const unsubscribe = store.subscribe(() => setState(store.getState()));
+    const cleanup = (
+      store.dispatch as ThunkDispatch<AppState, never, UnknownAction>
+    )(setup({ numPlayers: 1, playOrder: ["0"], playerNames: { "0": "Me" } }));
+    return () => {
+      cleanup();
+      unsubscribe();
+    };
   }, [store]);
 
   const { state: G, ctx, playerID, chatMessages } = state;
@@ -73,7 +82,7 @@ export function Client<
         get:
           (_, prop: string) =>
           (...args: any[]) =>
-            dispatch(actions[prop]([{ playerID }, ...args])),
+            actions[prop] && dispatch(actions[prop]([{ playerID }, ...args])),
       }),
     [actions, playerID, dispatch]
   );

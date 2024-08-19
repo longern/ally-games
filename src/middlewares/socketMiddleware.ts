@@ -1,17 +1,157 @@
-import { Middleware } from "@reduxjs/toolkit";
-
 import {
   AppActions,
   AppDispatch,
+  AppMiddleware,
   AppState,
   Ctx,
+  gameSetup,
+  sendChatMessage,
   setCtx,
+  setGameState,
   setPlayerID,
   setup,
 } from "../app/game";
 import { Connection } from "../peer/types";
+import { jsonRpcWrapper } from "../peer/jsonrpc";
 
-export function createClientMiddleware({
+function serverFunctions({
+  dispatch,
+  getState,
+}: {
+  dispatch: AppDispatch;
+  getState: () => AppState;
+  playerID: string;
+}) {
+  return {
+    async sync() {
+      return getState().state;
+    },
+    async dispatch(action: AppActions) {
+      dispatch(action);
+    },
+  };
+}
+
+function clientFunctions({
+  dispatch,
+}: {
+  dispatch: AppDispatch;
+  playerID: string;
+}) {
+  return {
+    async dispatch(action: AppActions) {
+      dispatch(action);
+    },
+  };
+}
+
+function createServerMiddleware({
+  ctx,
+  playerID,
+  connections,
+}: {
+  ctx: Ctx;
+  playerID: string;
+  connections: Record<string, Connection>;
+}) {
+  const middleware: AppMiddleware = (store) => {
+    const wrappers: Record<
+      string,
+      ReturnType<typeof jsonRpcWrapper<ReturnType<typeof clientFunctions>>>
+    > = {};
+
+    return (next) => (action) => {
+      if (action.type === setup.type) {
+        store.dispatch(setPlayerID(playerID));
+        store.dispatch(gameSetup(ctx));
+
+        for (const [playerID, connection] of Object.entries(connections)) {
+          wrappers[playerID] = jsonRpcWrapper<
+            ReturnType<typeof clientFunctions>
+          >(connection, {
+            remotePrefix: "game.client.",
+            localPrefix: "game.server.",
+            localFunctions: serverFunctions({
+              dispatch: store.dispatch,
+              getState: store.getState,
+              playerID,
+            }),
+            timeout: 5000,
+          });
+        }
+
+        return () => {
+          Object.values(wrappers).forEach((wrapper) => wrapper.close());
+        };
+      }
+
+      const result = next(action);
+      const remoteAction = setGameState(store.getState().state);
+      Object.values(wrappers).forEach((wrapper) => {
+        wrapper.notify.dispatch(remoteAction);
+      });
+      return result;
+    };
+  };
+
+  return middleware;
+}
+
+function createClientMiddleware({
+  ctx,
+  playerID,
+  connection,
+}: {
+  ctx: Ctx;
+  playerID: string;
+  connection: Connection;
+}) {
+  const middleware: AppMiddleware = (store) => {
+    let wrapper: ReturnType<
+      typeof jsonRpcWrapper<ReturnType<typeof serverFunctions>>
+    >;
+
+    return (next) => (action) => {
+      if (action.type === setup.type) {
+        store.dispatch(setPlayerID(playerID));
+        store.dispatch(setCtx(ctx));
+
+        wrapper = jsonRpcWrapper(connection, {
+          remotePrefix: "game.server.",
+          localPrefix: "game.client.",
+          localFunctions: clientFunctions({
+            dispatch: store.dispatch,
+            playerID,
+          }),
+          timeout: 5000,
+        });
+
+        wrapper.methods
+          .sync()
+          .then((gameState: any) => {
+            store.dispatch(setGameState(gameState));
+          })
+          .catch(() => {});
+
+        return () => wrapper.close();
+      }
+
+      if (
+        action.type.startsWith("game/") ||
+        action.type === sendChatMessage.type
+      ) {
+        wrapper.notify.dispatch(action);
+        return;
+      }
+
+      return next(action);
+    };
+  };
+
+  return middleware;
+}
+
+export function createGameMiddleware({
   ctx,
   playerID,
   isHost,
@@ -22,73 +162,13 @@ export function createClientMiddleware({
   isHost: boolean;
   connections: Record<string, Connection>;
 }) {
-  const middleware: Middleware<{}, AppState, AppDispatch> = (store) => {
-    Promise.resolve().then(() => {
-      store.dispatch(setPlayerID(playerID));
-      store.dispatch(setCtx(ctx));
-      if (isHost) store.dispatch(setup(ctx));
-      else
-        Object.values(connections)[0].send(
-          JSON.stringify({ type: "client/syncGameState" })
-        );
-    });
-
-    const cleanup = (
-      (handlers) => () =>
-        handlers.forEach((handler) => handler())
-    )(
-      Object.entries(connections).map(([playerID, connection]) => {
-        const handler = (event: MessageEvent) => {
-          const action = JSON.parse(event.data);
-          if (action.type === "client/syncGameState")
-            connection.send(
-              JSON.stringify({
-                type: "client/setGameState",
-                payload: store.getState().state,
-              })
-            );
-          else if (action.type === "client/setGameState")
-            return store.dispatch(action);
-          if (
-            Array.isArray(action.payload) &&
-            action.payload[0]?.playerID === playerID
-          )
-            store.dispatch(action);
-        };
-        connection.addEventListener("message", handler);
-        return () => connection.removeEventListener("message", handler);
-      })
-    );
-
-    return (next) => (action: AppActions) => {
-      if (action.type === "client/reset") {
-        cleanup();
-        return next(action);
-      }
-
-      if (isHost) {
-        const result = next(action);
-        Object.values(connections).forEach((connection) => {
-          connection.send(
-            JSON.stringify({
-              type: "client/setGameState",
-              payload: store.getState().state,
-            })
-          );
-        });
-        return result;
-      } else {
-        if (
-          action.type.startsWith("client/") &&
-          action.type !== "client/sendChatMessage" &&
-          action.type !== "client/setup"
-        )
-          return next(action);
-        Object.values(connections)[0].send(JSON.stringify(action));
-        return;
-      }
-    };
-  };
+  const middleware = isHost
+    ? createServerMiddleware({ ctx, playerID, connections })
+    : createClientMiddleware({
+        ctx,
+        playerID,
+        connection: Object.values(connections)[0],
+      });
 
   return middleware;
 }
