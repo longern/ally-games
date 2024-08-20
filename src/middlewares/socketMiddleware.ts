@@ -24,7 +24,7 @@ function serverFunctions({
 }) {
   return {
     async sync() {
-      return getState().state;
+      return getState().game;
     },
     async dispatch(action: AppActions) {
       dispatch(action);
@@ -86,7 +86,7 @@ function createServerMiddleware({
       }
 
       const result = next(action);
-      const remoteAction = setGameState(store.getState().state);
+      const remoteAction = setGameState(store.getState().game);
       Object.values(wrappers).forEach((wrapper) => {
         wrapper.notify.dispatch(remoteAction);
       });

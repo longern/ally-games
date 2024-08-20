@@ -10,7 +10,6 @@ import {
 import { Provider } from "react-redux";
 
 import {
-  AppDispatch,
   Ctx,
   Game,
   GameClientMoves,
@@ -52,16 +51,11 @@ export function Client<
   board: GameBoardComponent<Game<S, M>>;
   enhancer?: StoreEnhancer;
 }): ReactNode {
-  const { actions, store } = useMemo(() => {
+  const { actions, dispatch, store, validMoves } = useMemo(() => {
     return createGameStore({ game, enhancer });
   }, [game, enhancer]);
 
   const [state, setState] = useState(store.getState());
-
-  const dispatch = useMemo(
-    () => store.dispatch as AppDispatch<Game<S, M>>,
-    [store]
-  );
 
   useEffect(() => {
     const unsubscribe = store.subscribe(() => setState(store.getState()));
@@ -74,7 +68,10 @@ export function Client<
     };
   }, [store]);
 
-  const { state: G, ctx, playerID, chatMessages } = state;
+  const {
+    game: G,
+    client: { ctx, playerID, chatMessages },
+  } = state;
 
   const moves = useMemo(
     () =>
@@ -82,9 +79,10 @@ export function Client<
         get:
           (_, prop: string) =>
           (...args: any[]) =>
-            actions[prop] && dispatch(actions[prop]([{ playerID }, ...args])),
+            validMoves.includes(prop) &&
+            dispatch(actions.move({ move: prop, ctx, playerID, args })),
       }),
-    [actions, playerID, dispatch]
+    [actions, ctx, playerID, dispatch, validMoves]
   );
 
   const sendChatMessage = useCallback(

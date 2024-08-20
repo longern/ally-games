@@ -1,5 +1,5 @@
 import {
-  CaseReducer,
+  combineReducers,
   configureStore,
   createAction,
   createSlice,
@@ -75,8 +75,7 @@ export function STRIP_SECRET<GameState>({
   return stripped;
 }
 
-export type AppState<GameState = any> = {
-  state: GameState | null;
+export type ClientState = {
   ctx: Ctx | null;
   playerID: string | null;
   chatMessages: any[];
@@ -109,70 +108,42 @@ const clientActions = {
 export const { gameSetup, setCtx, setPlayerID, setGameState, sendChatMessage } =
   clientActions;
 
-type Entries<T> = {
-  [K in keyof T]: [K, T[K]];
-}[keyof T][];
-
 function createGameSlice<G extends Game>({ game }: { game: G }) {
   type S = G extends Game<infer S> ? S : never;
   type M = G extends Game<any, infer M> ? M : never;
 
-  const entries = Object.entries(game.moves) as Entries<M>;
-  const gameReducers = Object.fromEntries(
-    entries.map(([move, fn]) => [
-      move,
-      ((state, action) => {
-        const oldPhase = game.phases?.[state.state?.["phase"]];
-        const { ctx } = state;
-        const [{ playerID }, ...args] = action.payload;
-        fn({ G: state.state, ctx, playerID }, ...args);
+  const slice = createSlice({
+    name: "game",
+    initialState: null as S | null,
+    reducers: {
+      move: (
+        state,
+        action: PayloadAction<{
+          move: keyof M;
+          ctx: Ctx;
+          playerID: string;
+          args: any[];
+        }>
+      ) => {
+        const { move: moveName, ctx, playerID, args } = action.payload;
+        const oldPhase = game.phases?.[state?.["phase"]];
+        (game.moves as M)[moveName]({ G: state, ctx, playerID }, ...args);
         const G = state.state;
         const newPhase = game.phases?.[G?.["phase"]];
         if (newPhase !== oldPhase) {
           oldPhase?.onEnd?.({ G, ctx, playerID });
           newPhase?.onBegin?.({ G, ctx, playerID });
         }
-      }) as CaseReducer<
-        AppState<S>,
-        PayloadAction<[{ playerID: string }, ...Parameters<typeof fn>]>
-      >,
-    ])
-  );
+      },
+    },
 
-  const slice = createSlice({
-    name: "game",
-    initialState: {
-      state: null,
-      ctx: null,
-      playerID: null,
-      chatMessages: [],
-    } as AppState<S>,
-    reducers: gameReducers,
     extraReducers: (builder) => {
-      builder.addCase(clientActions.gameSetup, (state, action) => {
-        state.ctx = action.payload;
-        state.state = game.setup({ ctx: action.payload });
+      builder.addCase(clientActions.gameSetup, (_, action) => {
+        return game.setup({ ctx: action.payload });
       });
 
-      builder.addCase(clientActions.setCtx, (state, action) => {
-        state.ctx = action.payload;
-      });
-
-      builder.addCase(clientActions.setPlayerID, (state, action) => {
-        state.playerID = action.payload;
-      });
-
-      builder.addCase(clientActions.setGameState, (state, action) => {
-        state.state = action.payload;
-      });
-
-      builder.addCase(clientActions.sendChatMessage, (state, action) => {
-        const [{ playerID }, payload] = action.payload;
-        state.chatMessages.push({
-          id: Math.random().toString(),
-          sender: playerID,
-          payload: payload,
-        });
+      builder.addCase(clientActions.setGameState, (_, action) => {
+        return action.payload;
       });
     },
   });
@@ -180,15 +151,46 @@ function createGameSlice<G extends Game>({ game }: { game: G }) {
   return slice;
 }
 
-type ActionCreatorsFromGame<G extends Game> = G extends Game<any, infer M>
-  ? PayloadAction<any[], `game/${Extract<keyof M, string>}`>
-  : never;
+const clientSlice = createSlice({
+  name: "client",
+  initialState: {
+    ctx: null,
+    playerID: null,
+    chatMessages: [],
+  } as ClientState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder.addCase(clientActions.gameSetup, (state, action) => {
+      state.ctx = action.payload;
+    });
+
+    builder.addCase(clientActions.setCtx, (state, action) => {
+      state.ctx = action.payload;
+    });
+
+    builder.addCase(clientActions.setPlayerID, (state, action) => {
+      state.playerID = action.payload;
+    });
+
+    builder.addCase(clientActions.sendChatMessage, (state, action) => {
+      const [{ playerID }, payload] = action.payload;
+      state.chatMessages.push({
+        id: Math.random().toString(),
+        sender: playerID,
+        payload: payload,
+      });
+    });
+  },
+});
 
 type ValueOf<T> = T[keyof T];
 
 type BasicAppActions<G extends Game = Game<any, {}>> =
   | ReturnType<ValueOf<typeof clientActions>>
-  | ActionCreatorsFromGame<G>;
+  | PayloadAction<
+      { move: keyof G["moves"]; args: any[]; playerID: string },
+      "game/move"
+    >;
 
 export type AppActions<G extends Game = Game<any, {}>> =
   | BasicAppActions<G>
@@ -206,12 +208,29 @@ export function createGameStore<G extends Game>({
   game: G;
   enhancer: StoreEnhancer;
 }) {
-  const slice = createGameSlice({ game });
+  const gameSlice = createGameSlice({ game });
   const store = configureStore({
-    reducer: slice.reducer,
+    reducer: combineReducers({
+      game: gameSlice.reducer,
+      client: clientSlice.reducer,
+    }),
     enhancers: (getDefaultEnhancers) =>
       getDefaultEnhancers().prepend(enhancer ? [enhancer] : []),
   });
 
-  return { actions: slice.actions as unknown as AppActions<G>, store };
+  const dispatch = store.dispatch as AppDispatch<G>;
+
+  return {
+    actions: {
+      ...gameSlice.actions,
+      ...clientSlice.actions,
+    },
+    store,
+    dispatch,
+    validMoves: Object.keys(game.moves) as (keyof G["moves"])[],
+  };
 }
+
+export type AppState<G extends Game = Game> = ReturnType<
+  ReturnType<typeof createGameStore<G>>["store"]["getState"]
+>;
