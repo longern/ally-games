@@ -38,7 +38,7 @@ function LazyClient({
     gameComponent().then(setComponent);
   }, [gameComponent]);
 
-  return enhancer && component ? (
+  return component ? (
     <Client game={component.game} board={component.Board} enhancer={enhancer} />
   ) : null;
 }

@@ -27,7 +27,7 @@ const createLobbyThunk = function <ThunkArg>(
 
 export const createLobby = createLobbyThunk(
   "lobby/create",
-  async ({ Peer }: { Peer?: Peer }, thunkAPI) => {
+  async ({ hostName, Peer }: { hostName: string; Peer?: Peer }, thunkAPI) => {
     Peer = Peer || broadcastChannelPeer;
     const peer = Peer.listen();
     const roomID = await peer.id;
@@ -93,7 +93,11 @@ export const createLobby = createLobbyThunk(
           roomID,
           host,
           players: {
-            [host]: { playerID: host, playerName: host, ready: false },
+            [host]: {
+              playerID: host,
+              playerName: hostName ?? host,
+              ready: true,
+            },
           },
           playOrder: [host],
         },

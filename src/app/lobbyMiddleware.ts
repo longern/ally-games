@@ -8,6 +8,7 @@ export const connections: Record<string, Connection> = {};
 
 export function createEnhancerFromLobby(lobbyState: AppState["lobby"]) {
   const { state: lobby, playerID } = lobbyState;
+  if (lobby.playOrder.length < 2) return undefined;
   const enhancer = applyMiddleware(
     createGameMiddleware({
       ctx: {

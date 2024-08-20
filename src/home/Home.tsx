@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import React, { useEffect } from "react";
 
-import { createLobby, joinLobby } from "../app/lobby";
+import { chooseGame, createLobby, joinLobby, startGame } from "../app/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import broadcastChannelPeer from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
@@ -123,7 +123,7 @@ function Home() {
   const dispatch = useAppDispatch();
   return (
     <Stack sx={{ height: "100%" }}>
-      <Container maxWidth="md" sx={{ padding: 0 }}>
+      <Container maxWidth="md" disableGutters>
         <Toolbar disableGutters sx={{ height: "60px" }}>
           <Box
             sx={{
@@ -182,8 +182,20 @@ function Home() {
           <Button
             variant="contained"
             size="large"
+            onClick={() => {
+              dispatch(chooseGame("block-blast"));
+              dispatch(startGame());
+            }}
+          >
+            Single Player
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
             onClick={() =>
-              dispatch(createLobby({ Peer: createPeerRef.current }))
+              dispatch(
+                createLobby({ hostName: nickname, Peer: createPeerRef.current })
+              )
             }
           >
             Create Room
