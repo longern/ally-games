@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 import broadcastChannelPeer from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
-import { connections } from "./lobbyMiddleware";
+import { connections } from "./middlewares/lobby";
 import { AppDispatch, AppState } from "./store";
 
 type LobbyThunk<ThunkArg = unknown> = (

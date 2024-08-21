@@ -10,9 +10,9 @@ import {
   setGameState,
   setPlayerID,
   setup,
-} from "../app/game";
-import { Connection } from "../peer/types";
-import { jsonRpcWrapper } from "../peer/jsonrpc";
+} from "../../app/game";
+import { Connection } from "../../peer/types";
+import { jsonRpcWrapper } from "../../peer/jsonrpc";
 
 function serverFunctions({
   dispatch,

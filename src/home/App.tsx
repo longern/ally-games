@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 
 import { Client, GameBoardComponent } from "../Client";
 import { Game } from "../app/game";
-import { createEnhancerFromLobby } from "../app/lobbyMiddleware";
+import { createEnhancerFromLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import { lazyGameComponents } from "./router";
 import Lobby from "./Lobby";

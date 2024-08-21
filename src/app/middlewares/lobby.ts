@@ -1,8 +1,8 @@
 import { applyMiddleware, Middleware } from "@reduxjs/toolkit";
 
-import { createGameMiddleware } from "../middlewares/socketMiddleware";
-import { Connection } from "../peer/types";
-import { AppState } from "./store";
+import { createGameMiddleware } from "./client";
+import { Connection } from "../../peer/types";
+import { AppState } from "../store";
 
 export const connections: Record<string, Connection> = {};
 

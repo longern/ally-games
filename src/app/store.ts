@@ -2,7 +2,7 @@ import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { useDispatch, useSelector } from "react-redux";
 
 import lobbySlice from "./lobby";
-import lobbyMiddleware from "./lobbyMiddleware";
+import lobbyMiddleware from "./middlewares/lobby";
 import settingsSlice, { localStorageWriter } from "./settings";
 
 const combinedReducer = combineReducers({
