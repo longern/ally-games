@@ -154,7 +154,7 @@ export const createPeerFactory: (options?: {
       return {
         id: idPromise,
         connections: getConnections(),
-        abort: () => abortController.abort(),
+        close: () => abortController.abort(),
       };
     },
 

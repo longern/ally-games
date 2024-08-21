@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import React, { useEffect } from "react";
 
-import { chooseGame, getReady, startGame } from "../app/lobby";
+import { leaveLobby, setReady } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import {
   Add as AddIcon,
@@ -23,6 +23,7 @@ import {
   Menu as MenuIcon,
   NavigateBefore as NavigateBeforeIcon,
 } from "@mui/icons-material";
+import { setLobbyState } from "../app/lobby";
 
 function QRCode({ value }: { value: string }) {
   return (
@@ -44,7 +45,7 @@ function Lobby() {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    dispatch(chooseGame("block-blast"));
+    dispatch(setLobbyState({ state: { game: "block-blast" } }));
   }, [dispatch]);
 
   const inviteSearchParam = new URLSearchParams({ p: lobby.roomID });
@@ -63,7 +64,11 @@ function Lobby() {
               alignItems: "center",
             }}
           >
-            <IconButton aria-label="Back" size="large">
+            <IconButton
+              aria-label="Back"
+              size="large"
+              onClick={() => dispatch(leaveLobby())}
+            >
               <NavigateBeforeIcon />
             </IconButton>
           </Box>
@@ -144,7 +149,9 @@ function Lobby() {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => dispatch(startGame())}
+                onClick={() =>
+                  dispatch(setLobbyState({ state: { matchRunning: true } }))
+                }
               >
                 Start
               </Button>
@@ -152,7 +159,9 @@ function Lobby() {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => dispatch(getReady())}
+                onClick={() =>
+                  dispatch(setReady(!lobby.players[playerID].ready))
+                }
               >
                 Ready
               </Button>

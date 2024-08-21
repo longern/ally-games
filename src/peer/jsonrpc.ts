@@ -113,6 +113,7 @@ export function jsonRpcWrapper<
   return {
     methods: methodsProxy,
     notify: notifyProxy,
+    connection,
     close,
   };
 }

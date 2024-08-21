@@ -20,12 +20,13 @@ import {
 } from "@mui/material";
 import React, { useEffect } from "react";
 
-import { chooseGame, createLobby, joinLobby, startGame } from "../app/lobby";
+import { createLobby, joinLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import broadcastChannelPeer from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
 import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
 import SettingsDialog from "./SettingsDialog";
+import { setLobbyState } from "../app/lobby";
 
 function useCreatePeerRef() {
   const createPeerRef = React.useRef<Peer | undefined>(undefined);
@@ -183,8 +184,11 @@ function Home() {
             variant="contained"
             size="large"
             onClick={() => {
-              dispatch(chooseGame("block-blast"));
-              dispatch(startGame());
+              dispatch(
+                setLobbyState({
+                  state: { game: "block-blast", matchRunning: true },
+                })
+              );
             }}
           >
             Single Player
