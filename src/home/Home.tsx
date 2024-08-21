@@ -7,11 +7,15 @@ import {
   Avatar,
   Box,
   Button,
+  Card,
+  CardActionArea,
+  CardContent,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Grid,
   IconButton,
   Stack,
   TextField,
@@ -27,6 +31,7 @@ import { Peer } from "../peer/types";
 import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
 import SettingsDialog from "./SettingsDialog";
 import { setLobbyState } from "../app/lobby";
+import { lazyGameComponents } from "./router";
 
 function useCreatePeerRef() {
   const createPeerRef = React.useRef<Peer | undefined>(undefined);
@@ -116,12 +121,41 @@ function JoinRoomDialog({
   );
 }
 
+function useGameList() {
+  const [games, setGames] = React.useState<
+    { name: string; pathname: string }[]
+  >([]);
+
+  useEffect(() => {
+    Promise.allSettled(
+      Object.keys(lazyGameComponents).map((gamePath) =>
+        fetch(`${gamePath}/manifest.json`).then(
+          async (res) => [gamePath, await res.json()] as const
+        )
+      )
+    ).then((responses) =>
+      setGames(
+        responses.flatMap((response) => {
+          if (response.status === "rejected") return [];
+          const [gamePath, manifest] = response.value;
+          return { ...manifest, pathname: gamePath.replace(/^\//, "") };
+        })
+      )
+    );
+  }, []);
+
+  return games;
+}
+
 function Home() {
   const [showSettings, setShowSettings] = React.useState(false);
   const [showJoinRoom, setShowJoinRoom] = React.useState(false);
   const nickname = useAppSelector((state) => state.settings.nickname);
   const createPeerRef = useCreatePeerRef();
   const dispatch = useAppDispatch();
+
+  const games = useGameList();
+
   return (
     <Stack sx={{ height: "100%" }}>
       <Container maxWidth="md" disableGutters>
@@ -168,37 +202,43 @@ function Home() {
           </Box>
         </Toolbar>
       </Container>
-      <Box
-        sx={{
-          flexGrow: 1,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
+      <Container
+        maxWidth="md"
+        sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 2 }}
       >
-        <Stack spacing={3} sx={{ "&>.MuiButton-root": { width: "200px" } }}>
-          <Typography variant="h4" textAlign="center">
-            Ally Games
-          </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => {
-              dispatch(
-                setLobbyState({
-                  state: { game: "block-blast", matchRunning: true },
-                })
-              );
-            }}
-          >
-            Single Player
-          </Button>
+        <Grid container spacing={3}>
+          {games.map((game) => (
+            <Grid item key={game.name} xs={6} md={4}>
+              <Card>
+                <CardActionArea
+                  onClick={() => {
+                    dispatch(
+                      setLobbyState({
+                        state: { game: game.pathname, matchRunning: true },
+                      })
+                    );
+                  }}
+                >
+                  <CardContent>{game.name}</CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+        <Stack
+          direction="row"
+          spacing={3}
+          sx={{ "&>.MuiButton-root": { width: "200px" } }}
+        >
           <Button
             variant="contained"
             size="large"
             onClick={() =>
               dispatch(
-                createLobby({ hostName: nickname, Peer: createPeerRef.current })
+                createLobby({
+                  hostName: nickname,
+                  Peer: createPeerRef.current,
+                })
               )
             }
           >
@@ -220,7 +260,7 @@ function Home() {
           open={showJoinRoom}
           onClose={() => setShowJoinRoom(false)}
         />
-      </Box>
+      </Container>
     </Stack>
   );
 }
