@@ -1,20 +1,63 @@
-import { Box, Button, Stack, TextField } from "@mui/material";
+import { Close as CloseIcon } from "@mui/icons-material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  IconButton,
+} from "@mui/material";
 import { StoreEnhancer } from "@reduxjs/toolkit";
 import React, { useEffect } from "react";
 
 import { Client, GameBoardComponent } from "../Client";
 import { Game } from "../app/game";
+import { setLobbyState } from "../app/lobby";
 import { createEnhancerFromLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
-import { lazyGameComponents } from "./router";
-import Lobby from "./Lobby";
-import { setSettings } from "../app/settings";
 import Home from "./Home";
+import Lobby from "./Lobby";
+import NicknamePage from "./NicknamePage";
+import { lazyGameComponents } from "./router";
+
+function ClientFloatingActions({ onLeave }: { onLeave: () => void }) {
+  const [showLeaveDialog, setShowLeaveDialog] = React.useState(false);
+
+  return (
+    <React.Fragment>
+      <IconButton
+        aria-label="Leave game"
+        size="small"
+        onClick={() => setShowLeaveDialog(true)}
+        sx={{
+          position: "fixed",
+          top: "8px",
+          left: "8px",
+          zIndex: 1000,
+        }}
+      >
+        <CloseIcon />
+      </IconButton>
+      <Dialog open={showLeaveDialog} onClose={() => setShowLeaveDialog(false)}>
+        <DialogContent>
+          <p>Are you sure you want to leave the game?</p>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowLeaveDialog(false)}>Cancel</Button>
+          <Button variant="contained" onClick={onLeave}>
+            Leave
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </React.Fragment>
+  );
+}
 
 function LazyClient({
   gameComponent,
+  fallback,
 }: {
   gameComponent: () => Promise<{ game: Game; Board: GameBoardComponent }>;
+  fallback?: React.ReactNode;
 }) {
   const [component, setComponent] = React.useState<{
     game: Game;
@@ -25,6 +68,7 @@ function LazyClient({
   );
   const lobbyState = useAppSelector((state) => state.lobby);
   const lobbyStateRef = React.useRef(lobbyState);
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     lobbyStateRef.current = lobbyState;
@@ -39,41 +83,20 @@ function LazyClient({
   }, [gameComponent]);
 
   return component ? (
-    <Client game={component.game} board={component.Board} enhancer={enhancer} />
-  ) : null;
-}
-
-function NicknamePage() {
-  const [nickname, setNickname] = React.useState("");
-  const dispatch = useAppDispatch();
-
-  return (
-    <Box
-      sx={{
-        height: "100%",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Stack spacing={4}>
-        <TextField
-          label="Nickname"
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          fullWidth
-        />
-        <Button
-          size="large"
-          variant="contained"
-          onClick={() => {
-            dispatch(setSettings({ value: { nickname } }));
-          }}
-        >
-          Continue
-        </Button>
-      </Stack>
-    </Box>
+    <React.Fragment>
+      <Client
+        game={component.game}
+        board={component.Board}
+        enhancer={enhancer}
+      />
+      <ClientFloatingActions
+        onLeave={() =>
+          dispatch(setLobbyState({ state: { matchRunning: false } }))
+        }
+      />
+    </React.Fragment>
+  ) : (
+    fallback
   );
 }
 

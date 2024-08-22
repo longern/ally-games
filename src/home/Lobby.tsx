@@ -22,6 +22,7 @@ import {
   ContentCopy as ContentCopyIcon,
   Menu as MenuIcon,
   NavigateBefore as NavigateBeforeIcon,
+  Share as ShareIcon,
 } from "@mui/icons-material";
 import { setLobbyState } from "../app/lobby";
 
@@ -170,7 +171,17 @@ function Lobby() {
         </Stack>
         <Dialog open={showInvite} onClose={() => setShowInvite(false)}>
           <DialogContent>
-            <QRCode value={inviteUrl} />
+            <Stack spacing={2}>
+              <QRCode value={inviteUrl} />
+              <Stack direction="row" sx={{ justifyContent: "space-evenly" }}>
+                <IconButton
+                  aria-label="Share"
+                  onClick={() => navigator.share({ url: inviteUrl })}
+                >
+                  <ShareIcon />
+                </IconButton>
+              </Stack>
+            </Stack>
           </DialogContent>
         </Dialog>
       </Container>

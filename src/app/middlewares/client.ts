@@ -5,14 +5,14 @@ import {
   AppState,
   Ctx,
   gameSetup,
+  init,
   sendChatMessage,
   setCtx,
   setGameState,
   setPlayerID,
-  setup,
 } from "../../app/game";
-import { Connection } from "../../peer/types";
 import { jsonRpcWrapper } from "../../peer/jsonrpc";
+import { Connection } from "../../peer/types";
 
 function serverFunctions({
   dispatch,
@@ -61,7 +61,7 @@ function createServerMiddleware({
     > = {};
 
     return (next) => (action) => {
-      if (action.type === setup.type) {
+      if (action.type === init.type) {
         store.dispatch(setPlayerID(playerID));
         store.dispatch(gameSetup(ctx));
 
@@ -112,7 +112,7 @@ function createClientMiddleware({
     >;
 
     return (next) => (action) => {
-      if (action.type === setup.type) {
+      if (action.type === init.type) {
         store.dispatch(setPlayerID(playerID));
         store.dispatch(setCtx(ctx));
 

@@ -15,8 +15,8 @@ import {
   GameClientMoves,
   GameMoveFunctions,
   createGameStore,
+  init,
   sendChatMessage as sendChatMessageAction,
-  setup,
 } from "./app/game";
 import { AppState } from "./app/store";
 
@@ -61,7 +61,7 @@ export function Client<
     const unsubscribe = store.subscribe(() => setState(store.getState()));
     const cleanup = (
       store.dispatch as ThunkDispatch<AppState, never, UnknownAction>
-    )(setup({ numPlayers: 1, playOrder: ["0"], playerNames: { "0": "Me" } }));
+    )(init());
     return () => {
       cleanup();
       unsubscribe();

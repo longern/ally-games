@@ -24,14 +24,14 @@ import {
 } from "@mui/material";
 import React, { useEffect } from "react";
 
+import { setLobbyState } from "../app/lobby";
 import { createLobby, joinLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import broadcastChannelPeer from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
 import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
-import SettingsDialog from "./SettingsDialog";
-import { setLobbyState } from "../app/lobby";
 import { lazyGameComponents } from "./router";
+import SettingsDialog from "./SettingsDialog";
 
 function useCreatePeerRef() {
   const createPeerRef = React.useRef<Peer | undefined>(undefined);
@@ -204,7 +204,13 @@ function Home() {
       </Container>
       <Container
         maxWidth="md"
-        sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 2 }}
+        sx={{
+          flexGrow: 1,
+          padding: 2,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
       >
         <Grid container spacing={3}>
           {games.map((game) => (

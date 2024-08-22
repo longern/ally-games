@@ -81,17 +81,24 @@ export type ClientState = {
   chatMessages: any[];
 };
 
-export const setup = Object.assign(
-  (ctx: Ctx) => {
+export const init = Object.assign(
+  () => {
     return Object.assign(
       (dispatch: Dispatch<BasicAppActions>) => {
-        dispatch(clientActions.gameSetup(ctx));
+        dispatch(clientActions.setPlayerID("0"));
+        dispatch(
+          clientActions.gameSetup({
+            numPlayers: 1,
+            playOrder: ["0"],
+            playerNames: { "0": "Me" },
+          })
+        );
         return () => {};
       },
-      { type: setup.type }
+      { type: init.type }
     );
   },
-  { type: "client/setup" as const }
+  { type: "client/init" as const }
 );
 
 const clientActions = {
@@ -194,7 +201,7 @@ type BasicAppActions<G extends Game = Game<any, {}>> =
 
 export type AppActions<G extends Game = Game<any, {}>> =
   | BasicAppActions<G>
-  | ReturnType<typeof setup>;
+  | ReturnType<typeof init>;
 export type AppDispatch<G extends Game = Game> = Dispatch<AppActions<G>>;
 
 export type AppMiddleware = (
