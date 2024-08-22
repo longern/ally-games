@@ -13,12 +13,13 @@ import {
   Typography,
 } from "@mui/material";
 import React from "react";
-import { useAppSelector } from "../app/store";
-
 import {
   NavigateBefore as NavigateBeforeIcon,
   NavigateNext as NavigateNextIcon,
 } from "@mui/icons-material";
+
+import { useAppDispatch, useAppSelector } from "../app/store";
+import { setSettings } from "../app/settings";
 
 function DialogToolbar({
   onClose,
@@ -75,6 +76,8 @@ function AccountDialog({
 }) {
   const nickname = useAppSelector((state) => state.settings.nickname);
 
+  const dispatch = useAppDispatch();
+
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
       <Container maxWidth="md" sx={{ padding: 0, flexShrink: 0 }}>
@@ -88,7 +91,13 @@ function AccountDialog({
             sx={{ "& .MuiListItemButton-root": { minHeight: "60px" } }}
           >
             <ListItem disablePadding>
-              <ListItemButton>
+              <ListItemButton
+                onClick={() => {
+                  const nickname = window.prompt("Enter your nickname");
+                  if (!nickname) return;
+                  dispatch(setSettings({ value: { nickname } }));
+                }}
+              >
                 <ListItemText
                   primary="Nickname"
                   secondary={nickname}

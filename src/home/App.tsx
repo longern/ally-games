@@ -16,8 +16,8 @@ import { createEnhancerFromLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import Home from "./Home";
 import Lobby from "./Lobby";
-import NicknamePage from "./NicknamePage";
 import { lazyGameComponents } from "./router";
+import { setSettings } from "../app/settings";
 
 function ClientFloatingActions({ onLeave }: { onLeave: () => void }) {
   const [showLeaveDialog, setShowLeaveDialog] = React.useState(false);
@@ -108,9 +108,16 @@ function App() {
   const nickname = useAppSelector((state) => state.settings.nickname);
   const gameName = useAppSelector((state) => state.lobby.state.game);
 
-  return !nickname ? (
-    <NicknamePage />
-  ) : matchRunning ? (
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (nickname) return;
+    const randomString = crypto.getRandomValues(new Uint32Array(1))[0];
+    const randomName = `ap_${randomString.toString(36)}`;
+    dispatch(setSettings({ value: { nickname: randomName } }));
+  }, [nickname, dispatch]);
+
+  return matchRunning ? (
     <LazyClient gameComponent={lazyGameComponents[`/${gameName}`]} />
   ) : roomID ? (
     <Lobby />
