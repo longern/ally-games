@@ -85,7 +85,7 @@ const broadcastChannelPeer: Peer = {
       channel.postMessage(
         JSON.stringify({ jsonrpc: "2.0", method: "connect" })
       );
-      setTimeout(() => reject(new Error("timeout")), 5000);
+      setTimeout(() => reject(new Error("Timeout")), 5000);
     });
   },
 };

@@ -69,13 +69,14 @@ function getRemoteCaller<M extends object>(ws: WebSocket) {
 
 function signalMessageHandler(
   remoteCaller: FlarePeerClient,
-  onConnection: (connection: Connection) => void
+  onConnection: (connection: Connection) => void,
+  rtcConfiguration?: RTCConfiguration
 ) {
   return async (message: AsyncReturnType<FlarePeerClient["poll"]>[number]) => {
     const { type, source, content } = message;
     switch (type) {
       case "offer": {
-        const connection = new RTCPeerConnection();
+        const connection = new RTCPeerConnection(rtcConfiguration);
         await connection.setRemoteDescription({ type: "offer", sdp: content });
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
@@ -136,7 +137,11 @@ export const createPeerFactory: (options?: {
       async function pollMessages() {
         const messages = await remoteCaller.poll().catch(() => []);
         messages.forEach(
-          signalMessageHandler(remoteCaller, connectionResolver)
+          signalMessageHandler(
+            remoteCaller,
+            connectionResolver,
+            options.rtcConfiguration
+          )
         );
       }
 
@@ -149,7 +154,10 @@ export const createPeerFactory: (options?: {
         ws.addEventListener("close", () => clearInterval(interval));
       });
 
-      abortController.signal.onabort = () => ws.close();
+      abortController.signal.onabort = () => {
+        clearInterval(interval);
+        ws.close();
+      };
 
       return {
         id: idPromise,

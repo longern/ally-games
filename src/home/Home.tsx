@@ -10,6 +10,7 @@ import {
   Card,
   CardActionArea,
   CardContent,
+  CircularProgress,
   Container,
   Dialog,
   DialogActions,
@@ -22,7 +23,7 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 
 import { setLobbyState } from "../app/lobby";
 import { createLobby, joinLobby } from "../app/middlewares/lobby";
@@ -45,7 +46,14 @@ function useCreatePeerRef() {
       case "webrtc":
         createPeerRef.current = createPeerWebRTCFactory({
           rtcConfiguration: {
-            iceServers: [{ urls: ["stun:stun.cloudflare.com:3478"] }],
+            iceServers: [
+              { urls: ["stun:stun.cloudflare.com:3478"] },
+              {
+                urls: "turn:freeturn.net:3479",
+                username: "free",
+                credential: "free",
+              },
+            ],
           },
         });
         break;
@@ -63,28 +71,38 @@ function JoinRoomDialog({
   onClose: () => void;
 }) {
   const [roomID, setRoomID] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [message, setMessage] = React.useState("");
   const createPeerRef = useCreatePeerRef();
 
   const dispatch = useAppDispatch();
 
-  const handleJoin = async () => {
-    if (!roomID) return;
-    dispatch(joinLobby({ roomID, Peer: createPeerRef.current }));
-  };
+  const handleJoin = useCallback(
+    async (roomID: string) => {
+      if (!roomID) return;
+      setLoading(true);
+      dispatch(joinLobby({ roomID, Peer: createPeerRef.current }))
+        .unwrap()
+        .catch((err) => setMessage(err.message || "Could not join room."))
+        .finally(() => setLoading(false));
+    },
+    [dispatch, createPeerRef]
+  );
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const roomID = searchParams.get("p");
     if (roomID) {
-      dispatch(joinLobby({ roomID, Peer: createPeerRef.current }));
+      setRoomID(roomID);
+      handleJoin(roomID);
     }
-  }, [dispatch, createPeerRef]);
+  }, [handleJoin]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle variant="h5">Join Room</DialogTitle>
       <DialogContent>
-        <Stack direction="row" sx={{ paddingTop: 2 }}>
+        <Stack spacing={1} sx={{ paddingTop: 2 }}>
           <TextField
             label="Room ID"
             fullWidth
@@ -109,17 +127,26 @@ function JoinRoomDialog({
               ) : null,
             }}
           />
+          {message && (
+            <Typography variant="body2" color="error">
+              {message}
+            </Typography>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleJoin}>
-          Join
+        <Button variant="contained" onClick={() => handleJoin(roomID)}>
+          {loading ? <CircularProgress size={24} color="inherit" /> : "Join"}
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
+
+const gameListCache = {
+  current: null as null | { name: string; pathname: string }[],
+};
 
 function useGameList() {
   const [games, setGames] = React.useState<
@@ -127,21 +154,26 @@ function useGameList() {
   >([]);
 
   useEffect(() => {
+    if (gameListCache.current) {
+      setGames(gameListCache.current);
+      return;
+    }
+
     Promise.allSettled(
       Object.keys(lazyGameComponents).map((gamePath) =>
         fetch(`${gamePath}/manifest.json`).then(
           async (res) => [gamePath, await res.json()] as const
         )
       )
-    ).then((responses) =>
-      setGames(
-        responses.flatMap((response) => {
-          if (response.status === "rejected") return [];
-          const [gamePath, manifest] = response.value;
-          return { ...manifest, pathname: gamePath.replace(/^\//, "") };
-        })
-      )
-    );
+    ).then((responses) => {
+      const games = responses.flatMap((response) => {
+        if (response.status === "rejected") return [];
+        const [gamePath, manifest] = response.value;
+        return { ...manifest, pathname: gamePath.replace(/^\//, "") };
+      });
+      gameListCache.current = games;
+      setGames(games);
+    });
   }, []);
 
   return games;
@@ -155,6 +187,12 @@ function Home() {
   const dispatch = useAppDispatch();
 
   const games = useGameList();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const roomID = searchParams.get("p");
+    if (roomID) setShowJoinRoom(true);
+  }, []);
 
   return (
     <Stack sx={{ height: "100%" }}>
