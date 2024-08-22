@@ -9,8 +9,19 @@ const localStorageSettings = JSON.parse(
 const DEFAULT_PROTOCOL =
   process.env.NODE_ENV === "production" ? "webrtc" : "broadcast-channel";
 
+export type TurnServer =
+  | ({ type: "custom"; disabled?: boolean } & RTCIceServer)
+  | {
+      type: "cloudflare";
+      keyId: string;
+      keyToken: string;
+      customDomain?: string;
+      disabled?: boolean;
+    };
+
 const defaultSettings = {
   protocol: DEFAULT_PROTOCOL as typeof DEFAULT_PROTOCOL,
+  turnServers: undefined as TurnServer[] | undefined,
   nickname: "",
 };
 

@@ -29,6 +29,7 @@ function ClientFloatingActions({ onLeave }: { onLeave: () => void }) {
         size="small"
         onClick={() => setShowLeaveDialog(true)}
         sx={{
+          backgroundColor: "rgba(255, 255, 255, 0.3)",
           position: "fixed",
           top: "8px",
           left: "8px",

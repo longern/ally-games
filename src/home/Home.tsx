@@ -33,10 +33,56 @@ import { Peer } from "../peer/types";
 import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
 import { lazyGameComponents } from "./router";
 import SettingsDialog from "./SettingsDialog";
+import { TurnServer } from "../app/settings";
+
+const cloudflareTurnTokenCache: Record<
+  string,
+  {
+    ttl: number;
+    iceServers: RTCIceServer;
+    timestamp: number;
+  }
+> = {};
+
+async function fetchCloudflareTurn(
+  turnServer: Extract<TurnServer, { type: "cloudflare" }>
+): Promise<RTCIceServer> {
+  const cached =
+    cloudflareTurnTokenCache[turnServer.keyId + turnServer.keyToken];
+  if (cached) {
+    if (Date.now() - cached.timestamp < cached.ttl * 1000) {
+      return cached.iceServers;
+    }
+  }
+
+  const timestamp = Date.now();
+  const response = await fetch(
+    `https://rtc.live.cloudflare.com/v1/turn/keys/${turnServer.keyId}/credentials/generate`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${turnServer.keyToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ttl: 86400 }),
+    }
+  );
+  let text = await response.text();
+  if (turnServer.customDomain)
+    text = text.replaceAll("turn.cloudflare.com", turnServer.customDomain);
+  const { iceServers } = JSON.parse(text) as { iceServers: RTCIceServer };
+  cloudflareTurnTokenCache[turnServer.keyId + turnServer.keyToken] = {
+    ttl: 86400,
+    iceServers,
+    timestamp,
+  };
+  return iceServers;
+}
 
 function useCreatePeerRef() {
   const createPeerRef = React.useRef<Peer | undefined>(undefined);
   const protocol = useAppSelector((state) => state.settings.protocol);
+  const turnServers = useAppSelector((state) => state.settings.turnServers);
 
   useEffect(() => {
     switch (protocol) {
@@ -44,21 +90,44 @@ function useCreatePeerRef() {
         createPeerRef.current = broadcastChannelPeer;
         break;
       case "webrtc":
-        createPeerRef.current = createPeerWebRTCFactory({
-          rtcConfiguration: {
-            iceServers: [
-              { urls: ["stun:stun.cloudflare.com:3478"] },
-              {
-                urls: "turn:freeturn.net:3479",
-                username: "free",
-                credential: "free",
-              },
-            ],
-          },
-        });
+        {
+          async function getRtcConfiguration() {
+            const iceTurnServersSettled = await Promise.allSettled([
+              ...(turnServers || [])
+                .filter((turnServer) => !turnServer.disabled)
+                .map((turnServer) =>
+                  turnServer.type === "custom"
+                    ? Promise.resolve({
+                        urls: turnServer.urls,
+                        username: turnServer.username,
+                        credential: turnServer.credential,
+                      })
+                    : fetchCloudflareTurn(turnServer)
+                ),
+            ]);
+
+            const iceTurnServers = iceTurnServersSettled
+              .filter(
+                (result): result is PromiseFulfilledResult<RTCIceServer> =>
+                  result.status === "fulfilled"
+              )
+              .map((result) => result.value);
+
+            return {
+              iceServers: [
+                { urls: ["stun:stun.cloudflare.com:3478"] },
+                ...iceTurnServers,
+              ],
+            };
+          }
+
+          createPeerRef.current = createPeerWebRTCFactory({
+            rtcConfiguration: getRtcConfiguration,
+          });
+        }
         break;
     }
-  }, [protocol]);
+  }, [protocol, turnServers]);
 
   return createPeerRef;
 }

@@ -28,11 +28,11 @@ type AsyncReturnType<T extends (...args: any) => Promise<any>> = T extends (
   ? R
   : any;
 
-function waitICEGathering(peerConnection: RTCPeerConnection) {
+function waitICEGathering(peerConnection: RTCPeerConnection, timeout = 3000) {
   return new Promise<RTCSessionDescription>((resolve) => {
     setTimeout(function () {
       resolve(peerConnection.localDescription);
-    }, 1000);
+    }, timeout);
     peerConnection.onicegatheringstatechange = (_ev) =>
       peerConnection.iceGatheringState === "complete" &&
       resolve(peerConnection.localDescription);
@@ -104,7 +104,7 @@ const DEFAULT_SIGNAL_SERVER_URL = "wss://peer.longern.com";
 
 export const createPeerFactory: (options?: {
   signalServerURL?: string;
-  rtcConfiguration?: RTCConfiguration;
+  rtcConfiguration?: RTCConfiguration | (() => Promise<RTCConfiguration>);
 }) => Peer = (options) => {
   options = options || {};
   const signalServerURL = options.signalServerURL || DEFAULT_SIGNAL_SERVER_URL;
@@ -136,11 +136,15 @@ export const createPeerFactory: (options?: {
 
       async function pollMessages() {
         const messages = await remoteCaller.poll().catch(() => []);
+        const rtcConfiguration =
+          typeof options.rtcConfiguration === "function"
+            ? await options.rtcConfiguration()
+            : options.rtcConfiguration;
         messages.forEach(
           signalMessageHandler(
             remoteCaller,
             connectionResolver,
-            options.rtcConfiguration
+            rtcConfiguration
           )
         );
       }
@@ -149,7 +153,7 @@ export const createPeerFactory: (options?: {
         const { id } = await remoteCaller.open(undefined);
         idPromiseResolver(id);
 
-        interval = setInterval(pollMessages, 5000);
+        interval = setInterval(pollMessages, 2000);
 
         ws.addEventListener("close", () => clearInterval(interval));
       });
@@ -172,7 +176,11 @@ export const createPeerFactory: (options?: {
 
       await new Promise((resolve) => ws.addEventListener("open", resolve));
       await remoteCaller.open();
-      const peerConnection = new RTCPeerConnection(options.rtcConfiguration);
+      const rtcConfiguration =
+        typeof options.rtcConfiguration === "function"
+          ? await options.rtcConfiguration()
+          : options.rtcConfiguration;
+      const peerConnection = new RTCPeerConnection(rtcConfiguration);
       const dataChannel = peerConnection.createDataChannel("data");
       await peerConnection.setLocalDescription(
         await peerConnection.createOffer()

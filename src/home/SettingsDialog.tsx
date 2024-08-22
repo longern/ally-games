@@ -1,71 +1,20 @@
 import {
-  Box,
   Container,
   Dialog,
   DialogContent,
   Divider,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemText,
-  Toolbar,
-  Typography,
 } from "@mui/material";
 import React from "react";
-import {
-  NavigateBefore as NavigateBeforeIcon,
-  NavigateNext as NavigateNextIcon,
-} from "@mui/icons-material";
+import { NavigateNext as NavigateNextIcon } from "@mui/icons-material";
 
 import { useAppDispatch, useAppSelector } from "../app/store";
 import { setSettings } from "../app/settings";
-
-function DialogToolbar({
-  onClose,
-  title,
-  endAdornment,
-}: {
-  onClose: () => void;
-  title: string;
-  endAdornment?: React.ReactNode;
-}) {
-  return (
-    <Toolbar disableGutters sx={{ height: "60px" }}>
-      <Box
-        sx={{
-          height: "100%",
-          aspectRatio: "1 / 1",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <IconButton aria-label="Close" size="large" onClick={onClose}>
-          <NavigateBeforeIcon />
-        </IconButton>
-      </Box>
-      <Box sx={{ flexGrow: 1 }} />
-      <Typography variant="h6">{title}</Typography>
-      <Box sx={{ flexGrow: 1 }} />
-      {endAdornment ? (
-        <Box
-          sx={{
-            height: "100%",
-            aspectRatio: "1 / 1",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          {endAdornment}
-        </Box>
-      ) : (
-        <Box sx={{ height: "100%", aspectRatio: "1 / 1" }} />
-      )}
-    </Toolbar>
-  );
-}
+import DialogToolbar from "./DialogToolbar";
+import ConnectionDialog from "./ConnectionDialog";
 
 function AccountDialog({
   open,
@@ -101,43 +50,6 @@ function AccountDialog({
                 <ListItemText
                   primary="Nickname"
                   secondary={nickname}
-                ></ListItemText>
-                <NavigateNextIcon />
-              </ListItemButton>
-            </ListItem>
-          </List>
-        </Container>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ConnectionDialog({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  const protocol = useAppSelector((state) => state.settings.protocol);
-
-  return (
-    <Dialog open={open} onClose={onClose} fullScreen>
-      <Container maxWidth="md" sx={{ padding: 0, flexShrink: 0 }}>
-        <DialogToolbar onClose={onClose} title="Connection" />
-      </Container>
-      <Divider />
-      <DialogContent sx={{ padding: 0 }}>
-        <Container maxWidth="md" sx={{ padding: 0 }}>
-          <List
-            disablePadding
-            sx={{ "& .MuiListItemButton-root": { minHeight: "60px" } }}
-          >
-            <ListItem disablePadding>
-              <ListItemButton>
-                <ListItemText
-                  primary="Protocol"
-                  secondary={protocol}
                 ></ListItemText>
                 <NavigateNextIcon />
               </ListItemButton>
