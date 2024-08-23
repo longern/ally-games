@@ -4,17 +4,46 @@ import { GameBoardProps } from "../Client";
 import { gomoku } from "./game";
 import "./index.css";
 
-function Board({ G, moves }: GameBoardProps<typeof gomoku>) {
+function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
   return (
     <div className="gomoku-container">
       <div className="gomoku-info">
-        {G.winner !== null ? (
-          <div>{G.winner === 1 ? "White" : "Black"} wins!</div>
-        ) : (
-          <div>{G.currentPlayer === 1 ? "White" : "Black"} to move</div>
-        )}
+        <div
+          className={`gomoku-player ${G.currentPlayer === 0 ? "active" : ""}`}
+        >
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 12 12"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="6" cy="6" r="5" fill="black" />
+          </svg>
+          <span className="gomoku-player-name">
+            {ctx.playerNames[ctx.playOrder[1]] ?? "Black"}
+          </span>
+        </div>
+        <div className="gomoku-status"></div>
+        <div
+          className={`gomoku-player ${G.currentPlayer === 1 ? "active" : ""}`}
+        >
+          <span className="gomoku-player-name right">
+            {ctx.playerNames[ctx.playOrder[1]] ?? "White"}
+          </span>
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 12 12"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="6" cy="6" r="5" fill="white" />
+          </svg>
+        </div>
       </div>
-      <div className="gomoku-board">
+      <div
+        className="gomoku-board"
+        style={{ backgroundImage: `url("/gomoku/wood-pattern.png")` }}
+      >
         <svg
           viewBox="0 0 15 15"
           xmlns="http://www.w3.org/2000/svg"
@@ -77,6 +106,11 @@ function Board({ G, moves }: GameBoardProps<typeof gomoku>) {
             )
           )}
         </svg>
+      </div>
+      <div className="gomoku-actions">
+        <button disabled={G.winner === null} onClick={() => moves.reset()}>
+          Reset
+        </button>
       </div>
     </div>
   );

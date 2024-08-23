@@ -7,16 +7,12 @@ import {
   Avatar,
   Box,
   Button,
-  Card,
-  CardActionArea,
-  CardContent,
   CircularProgress,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   IconButton,
   Stack,
   TextField,
@@ -25,15 +21,15 @@ import {
 } from "@mui/material";
 import React, { useCallback, useEffect } from "react";
 
-import { setLobbyState } from "../app/lobby";
 import { createLobby, joinLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import broadcastChannelPeer from "../peer/broadcastChannel";
 import { Peer } from "../peer/types";
 import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
-import { lazyGameComponents } from "./router";
 import SettingsDialog from "./SettingsDialog";
 import { TurnServer } from "../app/settings";
+import { GameGrid, useGameList } from "./useGameList";
+import { setLobbyState } from "../app/lobby";
 
 const cloudflareTurnTokenCache: Record<
   string,
@@ -213,41 +209,6 @@ function JoinRoomDialog({
   );
 }
 
-const gameListCache = {
-  current: null as null | { name: string; pathname: string }[],
-};
-
-function useGameList() {
-  const [games, setGames] = React.useState<
-    { name: string; pathname: string }[]
-  >([]);
-
-  useEffect(() => {
-    if (gameListCache.current) {
-      setGames(gameListCache.current);
-      return;
-    }
-
-    Promise.allSettled(
-      Object.keys(lazyGameComponents).map((gamePath) =>
-        fetch(`${gamePath}/manifest.json`).then(
-          async (res) => [gamePath, await res.json()] as const
-        )
-      )
-    ).then((responses) => {
-      const games = responses.flatMap((response) => {
-        if (response.status === "rejected") return [];
-        const [gamePath, manifest] = response.value;
-        return { ...manifest, pathname: gamePath.replace(/^\//, "") };
-      });
-      gameListCache.current = games;
-      setGames(games);
-    });
-  }, []);
-
-  return games;
-}
-
 function Home() {
   const [showSettings, setShowSettings] = React.useState(false);
   const [showJoinRoom, setShowJoinRoom] = React.useState(false);
@@ -319,25 +280,12 @@ function Home() {
           gap: 4,
         }}
       >
-        <Grid container spacing={3}>
-          {games.map((game) => (
-            <Grid item key={game.name} xs={6} md={4}>
-              <Card>
-                <CardActionArea
-                  onClick={() => {
-                    dispatch(
-                      setLobbyState({
-                        state: { game: game.pathname, matchRunning: true },
-                      })
-                    );
-                  }}
-                >
-                  <CardContent>{game.name}</CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        <GameGrid
+          games={games}
+          onClick={(game) => {
+            dispatch(setLobbyState({ state: { game, matchRunning: true } }));
+          }}
+        />
         <Stack
           direction="row"
           spacing={3}

@@ -1,11 +1,26 @@
 .gomoku-container {
   width: 100%;
   height: 100%;
-  padding: 16px;
+  padding: 8px;
   display: flex;
   justify-content: center;
   align-items: center;
+  background-color: #f0dac3;
   gap: 16px;
+}
+
+.gomoku-container button {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #c07d15;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.gomoku-container button:disabled {
+  background-color: #bbb;
 }
 
 @media (orientation: portrait) {
@@ -15,10 +30,45 @@
 }
 
 .gomoku-info {
-  border: 1px solid gray;
-  border-radius: 8px;
-  padding: 16px;
   align-self: stretch;
+  display: flex;
+}
+
+@media (orientation: landscape) {
+  .gomoku-info {
+    flex-direction: column;
+  }
+}
+
+.gomoku-player {
+  flex-shrink: 0;
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-radius: 4px;
+  min-width: 0;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.gomoku-player.active {
+  border-color: #c07d15;
+}
+
+.gomoku-player-name {
+  width: 120px;
+  overflow: hidden;
+  text-wrap: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gomoku-player-name.right {
+  text-align: right;
+}
+
+.gomoku-status {
+  flex-grow: 1;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -29,7 +79,8 @@
   max-height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: contain;
-  padding: 16px;
+  border-radius: 4px;
+  padding: 8px;
   background-color: #c07d15;
 }
 

@@ -34,14 +34,16 @@ function isVictory(
   return false;
 }
 
+const setup = () => ({
+  board: Array.from({ length: 19 }, () =>
+    Array.from({ length: 19 }, () => null as number | null)
+  ),
+  currentPlayer: 0,
+  winner: null as number | null,
+});
+
 export const gomoku = createGame({
-  setup: () => ({
-    board: Array.from({ length: 19 }, () =>
-      Array.from({ length: 19 }, () => null as number | null)
-    ),
-    currentPlayer: 0,
-    winner: null as number | null,
-  }),
+  setup,
 
   moves: {
     clickCell: ({ G, ctx, playerID }, [x, y]: [number, y: number]) => {
@@ -54,7 +56,11 @@ export const gomoku = createGame({
       if (G.board[y][x] !== null) return;
       G.board[y][x] = index;
       if (isVictory(G.board, index, [x, y])) G.winner = index;
-      G.currentPlayer = (G.currentPlayer + 1) % 2;
+      else G.currentPlayer = (G.currentPlayer + 1) % 2;
+    },
+
+    reset: ({ G }) => {
+      if (G.winner !== null) Object.assign(G, setup());
     },
   },
 });

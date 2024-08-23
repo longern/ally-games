@@ -1,4 +1,12 @@
 import {
+  Add as AddIcon,
+  CheckCircle as CheckCircleIcon,
+  ContentCopy as ContentCopyIcon,
+  Menu as MenuIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  Share as ShareIcon,
+} from "@mui/icons-material";
+import {
   Avatar,
   Badge,
   Box,
@@ -8,23 +16,19 @@ import {
   DialogContent,
   Grid,
   IconButton,
+  Menu,
+  MenuItem,
   Stack,
   Toolbar,
   Typography,
 } from "@mui/material";
 import React, { useEffect } from "react";
 
+import { setLobbyState } from "../app/lobby";
 import { leaveLobby, setReady } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
-import {
-  Add as AddIcon,
-  CheckCircle as CheckCircleIcon,
-  ContentCopy as ContentCopyIcon,
-  Menu as MenuIcon,
-  NavigateBefore as NavigateBeforeIcon,
-  Share as ShareIcon,
-} from "@mui/icons-material";
-import { setLobbyState } from "../app/lobby";
+import DialogToolbar from "./DialogToolbar";
+import { GameGrid, useGameList } from "./useGameList";
 
 function QRCode({ value }: { value: string }) {
   return (
@@ -39,8 +43,39 @@ function QRCode({ value }: { value: string }) {
   );
 }
 
+function ChooseGameDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const games = useGameList();
+  const game = useAppSelector((state) => state.lobby.state.game);
+
+  const dispatch = useAppDispatch();
+
+  return (
+    <Dialog open={open} fullScreen>
+      <DialogToolbar onClose={onClose} title="Choose Game" />
+      <DialogContent>
+        <GameGrid
+          games={games}
+          selected={game}
+          onClick={(game) => {
+            dispatch(setLobbyState({ state: { game } }));
+            onClose();
+          }}
+        ></GameGrid>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Lobby() {
   const [showInvite, setShowInvite] = React.useState(false);
+  const [showChooseGame, setShowChooseGame] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const lobby = useAppSelector((state) => state.lobby.state);
   const playerID = useAppSelector((state) => state.lobby.playerID);
   const dispatch = useAppDispatch();
@@ -100,18 +135,41 @@ function Lobby() {
               alignItems: "center",
             }}
           >
-            <IconButton aria-label="Menu" size="large">
+            <IconButton
+              aria-label="Menu"
+              size="large"
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+            >
               <MenuIcon />
             </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+            >
+              <MenuItem
+                onClick={() => {
+                  setShowChooseGame(true);
+                  setAnchorEl(null);
+                }}
+              >
+                Choose Game
+              </MenuItem>
+              <MenuItem>Rule</MenuItem>
+            </Menu>
           </Box>
         </Toolbar>
+        <ChooseGameDialog
+          open={showChooseGame}
+          onClose={() => setShowChooseGame(false)}
+        />
       </Container>
       <Container maxWidth="md" sx={{ height: "100%", padding: 2 }}>
-        <Stack spacing={2} sx={{ width: "100%", height: "100%" }}>
-          <Box sx={{ flexGrow: 1 }}>
+        <Stack sx={{ width: "100%", height: "100%" }}>
+          <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
             <Grid container>
               {Object.entries(lobby.players).map(([id, player]) => (
-                <Grid item key={id} xs={4} md={2} sx={{ padding: 2 }}>
+                <Grid item key={id} xs={4} md={3} sx={{ paddingY: 4 }}>
                   <Stack spacing={1} sx={{ alignItems: "center" }}>
                     <Badge
                       badgeContent={
@@ -127,7 +185,7 @@ function Lobby() {
               {Array.from({
                 length: 6 - Object.keys(lobby.players).length,
               }).map((_, i) => (
-                <Grid item key={i} xs={4} md={2} sx={{ padding: 2 }}>
+                <Grid item key={i} xs={4} md={3} sx={{ paddingY: 4 }}>
                   <Stack spacing={1} sx={{ alignItems: "center" }}>
                     <Avatar>
                       <AddIcon />
@@ -138,7 +196,16 @@ function Lobby() {
               ))}
             </Grid>
           </Box>
-          <Stack direction="row" spacing={2} sx={{ justifyContent: "center" }}>
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{
+              width: "100%",
+              maxWidth: (theme) => theme.breakpoints.values.sm,
+              alignSelf: "center",
+              "& > *": { flexGrow: 1 },
+            }}
+          >
             <Button
               variant="outlined"
               size="large"
