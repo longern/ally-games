@@ -52,7 +52,19 @@
 }
 
 .block-blast .block-1 {
-  background-color: #f44336;
+  background-color: #be3329;
+}
+
+.block-blast .block-2 {
+  background-color: #f7d842;
+}
+
+.block-blast .block-3 {
+  background-color: #2b8a3e;
+}
+
+.block-blast .block-4 {
+  background-color: #1f3a93;
 }
 
 .block-blast #piece-dragging {
@@ -77,5 +89,4 @@
 
 .piece .block {
   flex: 1;
-  background-color: #f44336;
 }

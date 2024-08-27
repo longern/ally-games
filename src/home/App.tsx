@@ -33,7 +33,11 @@ function ClientFloatingActions({ onLeave }: { onLeave: () => void }) {
           position: "fixed",
           top: "8px",
           left: "8px",
-          zIndex: 1000,
+          zIndex: 1600,
+          transition: "background-color 0.2s",
+          "&:hover": {
+            backgroundColor: "rgba(255, 255, 255, 0.35)",
+          },
         }}
       >
         <CloseIcon />

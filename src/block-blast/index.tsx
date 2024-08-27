@@ -4,7 +4,15 @@ import { GameBoardProps } from "../Client";
 import game, { PIECES } from "./game";
 import "./index.css";
 
-function Piece({ piece, width }: { piece: [number, number][]; width: string }) {
+function Piece({
+  piece,
+  color,
+  width,
+}: {
+  piece: [number, number][];
+  color: number;
+  width: string;
+}) {
   const maxX = piece.reduce((max, [x]) => Math.max(max, x), 0);
   const maxY = piece.reduce((max, [, y]) => Math.max(max, y), 0);
 
@@ -24,7 +32,7 @@ function Piece({ piece, width }: { piece: [number, number][]; width: string }) {
           {Array.from({ length: maxX + 1 }).map((_, x) => (
             <div
               key={x}
-              className="block"
+              className={`block block-${color}`}
               style={{
                 visibility: piece.some(([px, py]) => px === x && py === y)
                   ? "visible"
@@ -83,7 +91,11 @@ function Board({ G, moves }: GameBoardProps<typeof game>) {
       onPointerCancel={handlePointerUp}
     >
       {draggingCandidate !== null && (
-        <Piece piece={PIECES[G.candidates[draggingCandidate]]} width="100%" />
+        <Piece
+          piece={PIECES[G.candidates[draggingCandidate].pieceId]}
+          color={G.candidates[draggingCandidate].color}
+          width="100%"
+        />
       )}
     </div>
   );
@@ -120,7 +132,11 @@ function Board({ G, moves }: GameBoardProps<typeof game>) {
                 }}
               >
                 {candidate !== null && i !== draggingCandidate && (
-                  <Piece piece={PIECES[candidate]} width="19%" />
+                  <Piece
+                    piece={PIECES[candidate.pieceId]}
+                    color={candidate.color}
+                    width="19%"
+                  />
                 )}
               </div>
             ))}

@@ -2,7 +2,7 @@ import { createGame } from "../app/game";
 
 type GameState = {
   board: number[][];
-  candidates: (number | null)[];
+  candidates: ({ pieceId: number; color: number } | null)[];
   score: number;
 };
 
@@ -178,9 +178,10 @@ export const PIECES: [number, number][][] = [
 ];
 
 function generateCandidates() {
-  return Array.from({ length: 3 }, () =>
-    Math.floor(Math.random() * PIECES.length)
-  );
+  return Array.from({ length: 3 }, () => ({
+    pieceId: Math.floor(Math.random() * PIECES.length),
+    color: Math.floor(Math.random() * 4) + 1,
+  }));
 }
 
 const game = createGame({
@@ -193,10 +194,11 @@ const game = createGame({
   },
   moves: {
     placeBlock({ G }, candidateIndex: number, x: number, y: number) {
-      if (typeof G.candidates[candidateIndex] !== "number") return;
-      const piece = PIECES[G.candidates[candidateIndex]];
+      if (typeof G.candidates[candidateIndex] !== "object") return;
+      const piece = PIECES[G.candidates[candidateIndex].pieceId];
       for (const [dx, dy] of piece) if (G.board[y + dy]?.[x + dx] !== 0) return;
-      for (const [dx, dy] of piece) G.board[y + dy][x + dx] = 1;
+      for (const [dx, dy] of piece)
+        G.board[y + dy][x + dx] = G.candidates[candidateIndex].color;
       G.candidates[candidateIndex] = null;
 
       const fullRows = Array.from({ length: 8 }, () => true);
