@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 
 import { GameBoardProps } from "../Client";
 import game, { PIECES } from "./game";
@@ -80,6 +80,13 @@ function Board({ G, moves }: GameBoardProps<typeof game>) {
       y: event.clientY - parentRect.top - pieceRect.height * (7 / 8),
     });
   }, []);
+
+  useEffect(() => {
+    const highscore = localStorage.getItem("block-blast-highscore") ?? "0";
+    if (G.score > parseInt(highscore, 10)) {
+      localStorage.setItem("block-blast-highscore", G.score.toString());
+    }
+  }, [G.score]);
 
   const pieceDragging = (
     <div
