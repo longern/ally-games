@@ -4,12 +4,13 @@ import {
   createListenerMiddleware,
 } from "@reduxjs/toolkit";
 
-import { createGameMiddleware } from "./client";
-import { Connection, Peer } from "../../peer/types";
-import { AppDispatch, AppState } from "../store";
 import broadcastChannelPeer from "../../peer/broadcastChannel";
-import { setLobbyState, setPlayerID, setPing } from "../lobby";
 import { jsonRpcWrapper } from "../../peer/jsonrpc";
+import { Connection, Peer } from "../../peer/types";
+import { Game } from "../game";
+import { setLobbyState, setPing, setPlayerID } from "../lobby";
+import { AppDispatch, AppState } from "../store";
+import { createGameMiddleware } from "./client";
 
 const createLobbyAsyncThunk = createAsyncThunk.withTypes<{
   dispatch: AppDispatch;
@@ -29,12 +30,16 @@ let lobbyClient = null as {
   rpc: ReturnType<typeof jsonRpcWrapper<ReturnType<typeof serverFunctions>>>;
 } | null;
 
-export function createEnhancerFromLobby(lobbyState: AppState["lobby"]) {
+export function createEnhancerFromLobby(
+  lobbyState: AppState["lobby"],
+  game: Game
+) {
   const { state: lobby, playerID } = lobbyState;
   if (lobby.playOrder.length < 2) return undefined;
   const isHost = playerID === lobby.host;
   const enhancer = applyMiddleware(
     createGameMiddleware({
+      game,
       ctx: {
         numPlayers: lobby.playOrder.length,
         playOrder: lobby.playOrder,

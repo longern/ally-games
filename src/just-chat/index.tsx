@@ -16,6 +16,30 @@ import { createGame } from "../app/game";
 
 export const game = createGame({ setup: () => ({}), moves: {} });
 
+interface Message {
+  text: string;
+  createdAt: string; // ISO 8601 string
+  metadata?: Record<string, unknown>;
+}
+
+function MessageCard({
+  message,
+}: {
+  message: { id: string; payload: Message };
+}) {
+  return (
+    <Card
+      sx={{
+        borderRadius: "4px",
+        padding: "0.5em 0.8em",
+        overflowWrap: "anywhere",
+      }}
+    >
+      {message.payload.text}
+    </Card>
+  );
+}
+
 export const Board: GameBoardComponent<typeof game> = ({
   ctx,
   playerID,
@@ -28,14 +52,18 @@ export const Board: GameBoardComponent<typeof game> = ({
     (e: React.FormEvent) => {
       e.preventDefault();
       if (!userInput) return;
-      sendChatMessage(userInput);
+      const message: Message = {
+        text: userInput,
+        createdAt: new Date().toISOString(),
+      };
+      sendChatMessage(message);
       setUserInput("");
     },
     [sendChatMessage, userInput]
   );
 
   return (
-    <Stack sx={{ height: "100vh" }}>
+    <Stack sx={{ height: "100%" }}>
       <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
         <Container maxWidth="md" sx={{ paddingY: 1 }}>
           <Stack spacing={2}>
@@ -71,15 +99,7 @@ export const Board: GameBoardComponent<typeof game> = ({
                   >
                     {ctx.playerNames[message.sender] ?? message.sender}
                   </Typography>
-                  <Card
-                    sx={{
-                      borderRadius: "4px",
-                      padding: "0.5em 0.8em",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {message.payload}
-                  </Card>
+                  <MessageCard message={message} />
                 </Stack>
                 <Box sx={{ width: "56px" }} />
               </Stack>

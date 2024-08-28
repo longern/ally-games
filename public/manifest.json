@@ -1,5 +1,12 @@
 {
   "name": "Ally Games",
   "display": "standalone",
-  "start_url": "/"
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
 }

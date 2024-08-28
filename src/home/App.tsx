@@ -80,8 +80,11 @@ function LazyClient({
   }, [lobbyState]);
 
   useEffect(() => {
-    setEnhancer(() => createEnhancerFromLobby(lobbyStateRef.current));
-  }, []);
+    if (!component) return;
+    setEnhancer(() =>
+      createEnhancerFromLobby(lobbyStateRef.current, component.game)
+    );
+  }, [component]);
 
   useEffect(() => {
     gameComponent().then(setComponent);

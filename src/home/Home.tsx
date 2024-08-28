@@ -23,110 +23,10 @@ import React, { useCallback, useEffect } from "react";
 
 import { createLobby, joinLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
-import broadcastChannelPeer from "../peer/broadcastChannel";
-import { Peer } from "../peer/types";
-import { createPeerFactory as createPeerWebRTCFactory } from "../peer/webrtc";
 import SettingsDialog from "./SettingsDialog";
-import { TurnServer } from "../app/settings";
 import { GameGrid, useGameList } from "./useGameList";
 import { setLobbyState } from "../app/lobby";
-
-const cloudflareTurnTokenCache: Record<
-  string,
-  {
-    ttl: number;
-    iceServers: RTCIceServer;
-    timestamp: number;
-  }
-> = {};
-
-async function fetchCloudflareTurn(
-  turnServer: Extract<TurnServer, { type: "cloudflare" }>
-): Promise<RTCIceServer> {
-  const cached =
-    cloudflareTurnTokenCache[turnServer.keyId + turnServer.keyToken];
-  if (cached) {
-    if (Date.now() - cached.timestamp < cached.ttl * 1000) {
-      return cached.iceServers;
-    }
-  }
-
-  const timestamp = Date.now();
-  const response = await fetch(
-    `https://rtc.live.cloudflare.com/v1/turn/keys/${turnServer.keyId}/credentials/generate`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${turnServer.keyToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ttl: 86400 }),
-    }
-  );
-  let text = await response.text();
-  if (turnServer.customDomain)
-    text = text.replaceAll("turn.cloudflare.com", turnServer.customDomain);
-  const { iceServers } = JSON.parse(text) as { iceServers: RTCIceServer };
-  cloudflareTurnTokenCache[turnServer.keyId + turnServer.keyToken] = {
-    ttl: 86400,
-    iceServers,
-    timestamp,
-  };
-  return iceServers;
-}
-
-function useCreatePeerRef() {
-  const createPeerRef = React.useRef<Peer | undefined>(undefined);
-  const protocol = useAppSelector((state) => state.settings.protocol);
-  const turnServers = useAppSelector((state) => state.settings.turnServers);
-
-  useEffect(() => {
-    switch (protocol) {
-      case "broadcast-channel":
-        createPeerRef.current = broadcastChannelPeer;
-        break;
-      case "webrtc":
-        {
-          async function getRtcConfiguration() {
-            const iceTurnServersSettled = await Promise.allSettled([
-              ...(turnServers || [])
-                .filter((turnServer) => !turnServer.disabled)
-                .map((turnServer) =>
-                  turnServer.type === "custom"
-                    ? Promise.resolve({
-                        urls: turnServer.urls,
-                        username: turnServer.username,
-                        credential: turnServer.credential,
-                      })
-                    : fetchCloudflareTurn(turnServer)
-                ),
-            ]);
-
-            const iceTurnServers = iceTurnServersSettled
-              .filter(
-                (result): result is PromiseFulfilledResult<RTCIceServer> =>
-                  result.status === "fulfilled"
-              )
-              .map((result) => result.value);
-
-            return {
-              iceServers: [
-                { urls: ["stun:stun.cloudflare.com:3478"] },
-                ...iceTurnServers,
-              ],
-            };
-          }
-
-          createPeerRef.current = createPeerWebRTCFactory({
-            rtcConfiguration: getRtcConfiguration,
-          });
-        }
-        break;
-    }
-  }, [protocol, turnServers]);
-
-  return createPeerRef;
-}
+import { usePeerInterface } from "./usePeerInterface";
 
 function JoinRoomDialog({
   open,
@@ -138,7 +38,8 @@ function JoinRoomDialog({
   const [roomID, setRoomID] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState("");
-  const createPeerRef = useCreatePeerRef();
+  const loadedRef = React.useRef(false);
+  const peerInterface = usePeerInterface();
 
   const dispatch = useAppDispatch();
 
@@ -146,15 +47,17 @@ function JoinRoomDialog({
     async (roomID: string) => {
       if (!roomID) return;
       setLoading(true);
-      dispatch(joinLobby({ roomID, Peer: createPeerRef.current }))
+      dispatch(joinLobby({ roomID, Peer: peerInterface }))
         .unwrap()
         .catch((err) => setMessage(err.message || "Could not join room."))
         .finally(() => setLoading(false));
     },
-    [dispatch, createPeerRef]
+    [dispatch, peerInterface]
   );
 
   useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     const searchParams = new URLSearchParams(window.location.search);
     const roomID = searchParams.get("p");
     if (roomID) {
@@ -213,7 +116,7 @@ function Home() {
   const [showSettings, setShowSettings] = React.useState(false);
   const [showJoinRoom, setShowJoinRoom] = React.useState(false);
   const nickname = useAppSelector((state) => state.settings.nickname);
-  const createPeerRef = useCreatePeerRef();
+  const peerInterface = usePeerInterface();
   const dispatch = useAppDispatch();
 
   const games = useGameList();
@@ -295,12 +198,7 @@ function Home() {
             variant="contained"
             size="large"
             onClick={() =>
-              dispatch(
-                createLobby({
-                  hostName: nickname,
-                  Peer: createPeerRef.current,
-                })
-              )
+              dispatch(createLobby({ hostName: nickname, Peer: peerInterface }))
             }
           >
             Create Room

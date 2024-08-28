@@ -4,6 +4,7 @@ import {
   AppMiddleware,
   AppState,
   Ctx,
+  Game,
   gameSetup,
   init,
   sendChatMessage,
@@ -46,10 +47,12 @@ function clientFunctions({
 }
 
 function createServerMiddleware({
+  game,
   ctx,
   playerID,
   connections,
 }: {
+  game: Game;
   ctx: Ctx;
   playerID: string;
   connections: Record<string, Connection>;
@@ -86,8 +89,12 @@ function createServerMiddleware({
       }
 
       const result = next(action);
-      const remoteAction = setGameState(store.getState().game);
-      Object.values(wrappers).forEach((wrapper) => {
+      const state = store.getState().game;
+      Object.entries(wrappers).forEach(([playerID, wrapper]) => {
+        const view = game.playerView
+          ? game.playerView({ G: state, ctx, playerID })
+          : state;
+        const remoteAction = setGameState(view);
         wrapper.notify.dispatch(remoteAction);
       });
       return result;
@@ -152,18 +159,20 @@ function createClientMiddleware({
 }
 
 export function createGameMiddleware({
+  game,
   ctx,
   playerID,
   isHost,
   connections,
 }: {
+  game: Game;
   ctx: Ctx;
   playerID: string;
   isHost: boolean;
   connections: Record<string, Connection>;
 }) {
   const middleware = isHost
-    ? createServerMiddleware({ ctx, playerID, connections })
+    ? createServerMiddleware({ game, ctx, playerID, connections })
     : createClientMiddleware({
         ctx,
         playerID,

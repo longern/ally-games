@@ -1,10 +1,35 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 
 import { GameBoardProps } from "../Client";
 import { gomoku } from "./game";
 import "./index.css";
 
 function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
+  const [moveDraft, setMoveDraft] = useState<[number, number]>([null, null]);
+
+  const handleClick = useCallback(
+    (event: React.PointerEvent) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = Math.floor(((event.clientX - rect.left) / rect.width) * 15);
+      const y = Math.floor(((event.clientY - rect.top) / rect.height) * 15);
+      switch (event.pointerType) {
+        case "touch":
+          if (moveDraft[0] === x && moveDraft[1] === y) {
+            moves.clickCell([x, y]);
+            setMoveDraft([null, null]);
+          } else {
+            if (G.board[y][x] === null) setMoveDraft([x, y]);
+            else setMoveDraft([null, null]);
+          }
+          break;
+        default:
+          moves.clickCell([x, y]);
+          break;
+      }
+    },
+    [G, moves, moveDraft]
+  );
+
   return (
     <div className="gomoku-container">
       <div className="gomoku-info">
@@ -17,7 +42,19 @@ function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
             viewBox="0 0 12 12"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <circle cx="6" cy="6" r="5" fill="black" />
+            <defs>
+              <radialGradient id="black-gradient" cx="40%" cy="40%">
+                <stop offset="0%" stopColor="#444" />
+                <stop offset="100%" stopColor="#111" />
+              </radialGradient>
+            </defs>
+            <defs>
+              <radialGradient id="white-gradient" cx="40%" cy="40%">
+                <stop offset="0%" stopColor="#f5f5f5" />
+                <stop offset="100%" stopColor="#d5d5d5" />
+              </radialGradient>
+            </defs>
+            <circle cx="6" cy="6" r="5" fill="url(#black-gradient)" />
           </svg>
           <span className="gomoku-player-name">
             {ctx.playerNames[ctx.playOrder[1]] ?? "Black"}
@@ -36,7 +73,7 @@ function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
             viewBox="0 0 12 12"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <circle cx="6" cy="6" r="5" fill="white" />
+            <circle cx="6" cy="6" r="5" fill="url(#white-gradient)" />
           </svg>
         </div>
       </div>
@@ -47,16 +84,7 @@ function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
         <svg
           viewBox="0 0 15 15"
           xmlns="http://www.w3.org/2000/svg"
-          onClick={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            const x = Math.floor(
-              ((event.clientX - rect.left) / rect.width) * 15
-            );
-            const y = Math.floor(
-              ((event.clientY - rect.top) / rect.height) * 15
-            );
-            moves.clickCell([x, y]);
-          }}
+          onPointerUp={handleClick}
         >
           {Array.from({ length: 15 }).map((_, y) => (
             <path
@@ -98,12 +126,27 @@ function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
                     cx={x + 0.5}
                     cy={y + 0.5}
                     r={0.4}
-                    fill={cell === 1 ? "white" : "black"}
-                    stroke="black"
-                    strokeWidth="0.05"
+                    fill={
+                      cell === 1
+                        ? "url(#white-gradient)"
+                        : "url(#black-gradient)"
+                    }
                   />
                 )
             )
+          )}
+          {moveDraft[0] !== null && (
+            <circle
+              cx={moveDraft[0] + 0.5}
+              cy={moveDraft[1] + 0.5}
+              r={0.4}
+              fill={
+                G.currentPlayer === 1
+                  ? "url(#white-gradient)"
+                  : "url(#black-gradient)"
+              }
+              fillOpacity="0.5"
+            />
           )}
         </svg>
       </div>
