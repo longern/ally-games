@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 
 import { GuessPicture } from "./game";
-import { GameBoardComponent } from "../Client";
+import { GameBoardComponent } from "../../Client";
 
 const COLORS = [
   "#f44336",

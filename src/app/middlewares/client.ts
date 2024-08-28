@@ -12,8 +12,8 @@ import {
   setGameState,
   setPlayerID,
 } from "../../app/game";
-import { jsonRpcWrapper } from "../../peer/jsonrpc";
-import { Connection } from "../../peer/types";
+import { jsonRpcWrapper } from "../peer/jsonrpc";
+import { Connection } from "../peer/types";
 
 function serverFunctions({
   dispatch,

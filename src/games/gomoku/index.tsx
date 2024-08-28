@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 
-import { GameBoardProps } from "../Client";
+import { GameBoardProps } from "../../Client";
 import { gomoku } from "./game";
 import "./index.css";
 

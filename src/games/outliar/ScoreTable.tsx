@@ -11,7 +11,7 @@ import React from "react";
 
 import game from "./game";
 import { COLORS } from "./utils";
-import { GameBoardProps } from "../Client";
+import type { GameBoardProps } from "../../Client";
 
 export function ScoreTable({
   G,

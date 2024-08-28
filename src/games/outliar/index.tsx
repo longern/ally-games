@@ -26,7 +26,7 @@ import StorageIcon from "@mui/icons-material/Storage";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import VideocamIcon from "@mui/icons-material/Videocam";
 
-import { GameBoardComponent } from "../Client";
+import type { GameBoardComponent } from "../../Client";
 import game, { BLANK_CARD, GameAction, WILD_CARD } from "./game";
 import i18n from "./i18n";
 import ScoreTable from "./ScoreTable";

@@ -1,4 +1,4 @@
-import { createGame } from "../app/game";
+import { createGame } from "../../app/game";
 
 function isVictory(
   board: number[][],

@@ -4,9 +4,9 @@ import {
   createListenerMiddleware,
 } from "@reduxjs/toolkit";
 
-import broadcastChannelPeer from "../../peer/broadcastChannel";
-import { jsonRpcWrapper } from "../../peer/jsonrpc";
-import { Connection, Peer } from "../../peer/types";
+import broadcastChannelPeer from "../peer/broadcastChannel";
+import { jsonRpcWrapper } from "../peer/jsonrpc";
+import { Connection, Peer } from "../peer/types";
 import { Game } from "../game";
 import { setLobbyState, setPing, setPlayerID } from "../lobby";
 import { AppDispatch, AppState } from "../store";

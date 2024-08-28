@@ -11,8 +11,8 @@ import {
 } from "@mui/material";
 import React, { useCallback, useState } from "react";
 
-import { GameBoardComponent } from "../Client";
-import { createGame } from "../app/game";
+import { GameBoardComponent } from "../../Client";
+import { createGame } from "../../app/game";
 
 export const game = createGame({ setup: () => ({}), moves: {} });
 

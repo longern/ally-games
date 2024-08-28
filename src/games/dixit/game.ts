@@ -1,4 +1,4 @@
-import { createGame, STRIP_SECRET } from "../app/game";
+import { createGame, STRIP_SECRET } from "../../app/game";
 
 type GameState = {
   stage: "upload" | "pick" | "confuse" | "guess" | "reveal";

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect } from "react";
 
-import { GameBoardProps } from "../Client";
+import { GameBoardProps } from "../../Client";
 import game, { PIECES } from "./game";
 import "./index.css";
 

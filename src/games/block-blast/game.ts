@@ -1,4 +1,4 @@
-import { createGame } from "../app/game";
+import { createGame } from "../../app/game";
 
 type GameState = {
   board: number[][];
