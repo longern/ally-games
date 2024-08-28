@@ -252,6 +252,7 @@ const game = createGame({
       comboResetCounter: 0,
     } as GameState;
   },
+
   moves: {
     placeBlock({ G }, candidateIndex: number, x: number, y: number) {
       if (typeof G.candidates[candidateIndex] !== "object") return;
@@ -294,6 +295,8 @@ const game = createGame({
         G.candidates = generateCandidates(G);
     },
   },
+
+  maxPlayers: 1,
 });
 
 export default game;

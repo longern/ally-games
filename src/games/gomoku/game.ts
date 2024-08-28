@@ -63,4 +63,6 @@ export const gomoku = createGame({
       if (G.winner !== null) Object.assign(G, setup());
     },
   },
+
+  maxPlayers: 2,
 });

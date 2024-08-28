@@ -146,4 +146,6 @@ export const GuessPicture = createGame({
   },
 
   playerView: STRIP_SECRET,
+
+  minPlayers: 3,
 });

@@ -1,10 +1,13 @@
 import {
   Clear as ClearIcon,
   ContentPaste as ContentPasteIcon,
+  People as PeopleIcon,
+  Person as PersonIcon,
   Settings as SettingsIcon,
 } from "@mui/icons-material";
 import {
   Avatar,
+  Backdrop,
   Box,
   Button,
   CircularProgress,
@@ -14,6 +17,11 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Stack,
   TextField,
   Toolbar,
@@ -27,6 +35,7 @@ import SettingsDialog from "./SettingsDialog";
 import { GameGrid, useGameList } from "./useGameList";
 import { setLobbyState } from "../app/lobby";
 import { usePeerInterface } from "./usePeerInterface";
+import { lazyGameComponents } from "./router";
 
 function JoinRoomDialog({
   open,
@@ -112,14 +121,73 @@ function JoinRoomDialog({
   );
 }
 
+function ModeSelectDialog({
+  open,
+  onClose,
+  onModeSelect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onModeSelect: (mode: string) => void;
+}) {
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <List>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => onModeSelect("single")}>
+            <ListItemIcon>
+              <PersonIcon />
+            </ListItemIcon>
+            <ListItemText primary="Single Player" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => onModeSelect("multi")}>
+            <ListItemIcon>
+              <PeopleIcon />
+            </ListItemIcon>
+            <ListItemText primary="Multiplayer" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </Dialog>
+  );
+}
+
 function Home() {
+  const [loading, setLoading] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const [showJoinRoom, setShowJoinRoom] = React.useState(false);
+  const [showModeSelect, setShowModeSelect] = React.useState(false);
+  const [gameName, setGameName] = React.useState("");
   const nickname = useAppSelector((state) => state.settings.nickname);
   const peerInterface = usePeerInterface();
   const dispatch = useAppDispatch();
 
   const games = useGameList();
+
+  const handleGameClick = useCallback(
+    async (gameName: string) => {
+      setLoading(true);
+      try {
+        const { game } = await lazyGameComponents[`/${gameName}`]();
+        if (game.maxPlayers < 2) {
+          dispatch(
+            setLobbyState({ state: { game: gameName, matchRunning: true } })
+          );
+        } else if (game.minPlayers > 1) {
+          dispatch(createLobby({ hostName: nickname, Peer: peerInterface }));
+        } else {
+          setGameName(gameName);
+          setShowModeSelect(true);
+        }
+      } catch (err) {
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dispatch, nickname, peerInterface]
+  );
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -183,12 +251,7 @@ function Home() {
           gap: 4,
         }}
       >
-        <GameGrid
-          games={games}
-          onClick={(game) => {
-            dispatch(setLobbyState({ state: { game, matchRunning: true } }));
-          }}
-        />
+        <GameGrid games={games} onClick={handleGameClick} />
         <Stack
           direction="row"
           spacing={3}
@@ -219,6 +282,27 @@ function Home() {
           open={showJoinRoom}
           onClose={() => setShowJoinRoom(false)}
         />
+        <ModeSelectDialog
+          open={showModeSelect}
+          onClose={() => setShowModeSelect(false)}
+          onModeSelect={(mode) => {
+            setShowModeSelect(false);
+            if (mode === "single") {
+              dispatch(
+                setLobbyState({
+                  state: { game: gameName, matchRunning: true },
+                })
+              );
+            } else {
+              dispatch(
+                createLobby({ hostName: nickname, Peer: peerInterface })
+              );
+            }
+          }}
+        />
+        <Backdrop open={loading}>
+          <CircularProgress />
+        </Backdrop>
       </Container>
     </Stack>
   );

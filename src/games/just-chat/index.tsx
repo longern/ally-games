@@ -14,7 +14,7 @@ import React, { useCallback, useState } from "react";
 import { GameBoardComponent } from "../../Client";
 import { createGame } from "../../app/game";
 
-export const game = createGame({ setup: () => ({}), moves: {} });
+export const game = createGame({ setup: () => ({}), moves: {}, minPlayers: 2 });
 
 interface Message {
   text: string;
