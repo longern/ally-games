@@ -108,6 +108,24 @@ function serverFunctions(
         })
       );
     },
+
+    async close() {
+      delete lobbyServer.rpcs[playerID];
+      thunkAPI.dispatch(
+        setLobbyState({
+          state: {
+            players: Object.fromEntries(
+              Object.entries(thunkAPI.getState().lobby.state.players).filter(
+                ([p]) => p !== playerID
+              )
+            ),
+            playOrder: thunkAPI
+              .getState()
+              .lobby.state.playOrder.filter((p) => p !== playerID),
+          },
+        })
+      );
+    },
   };
 }
 
@@ -138,6 +156,7 @@ async function serverConnectionsLoop(
     });
     connection.addEventListener("close", () => {
       delete lobbyClient.rpc[clientID];
+      serverFunctions({ playerID: clientID }, thunkAPI).close();
     });
   };
 
@@ -176,20 +195,14 @@ export const createLobby = createLobbyAsyncThunk(
     }, 3000);
 
     const host = Math.random().toString(36).substring(7);
+    const player = {
+      playerID: host,
+      playerName: hostName ?? host,
+      ready: true,
+    };
     thunkAPI.dispatch(
       setLobbyState({
-        state: {
-          roomID,
-          host,
-          players: {
-            [host]: {
-              playerID: host,
-              playerName: hostName ?? host,
-              ready: true,
-            },
-          },
-          playOrder: [host],
-        },
+        state: { roomID, host, players: { [host]: player }, playOrder: [host] },
       })
     );
     thunkAPI.dispatch(setPlayerID(host));
@@ -237,6 +250,7 @@ export const leaveLobby = createLobbyAsyncThunk(
       lobbyServer = null;
     }
     if (lobbyClient) {
+      lobbyClient.rpc.methods.close();
       lobbyClient.rpc.close();
       lobbyClient = null;
     }

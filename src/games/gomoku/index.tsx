@@ -4,7 +4,7 @@ import { GameBoardProps } from "../../Client";
 import { gomoku } from "./game";
 import "./index.css";
 
-function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
+function Board({ G, ctx, moves, playerID }: GameBoardProps<typeof gomoku>) {
   const [moveDraft, setMoveDraft] = useState<[number, number]>([null, null]);
 
   const handleClick = useCallback(
@@ -18,7 +18,10 @@ function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
             moves.clickCell([x, y]);
             setMoveDraft([null, null]);
           } else {
-            if (G.board[y][x] === null) setMoveDraft([x, y]);
+            const turnInvalid =
+              ctx.numPlayers > 1 &&
+              G.currentPlayer !== ctx.playOrder.indexOf(playerID);
+            if (G.board[y][x] === null && !turnInvalid) setMoveDraft([x, y]);
             else setMoveDraft([null, null]);
           }
           break;
@@ -27,7 +30,7 @@ function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
           break;
       }
     },
-    [G, moves, moveDraft]
+    [G, ctx, playerID, moves, moveDraft]
   );
 
   return (
@@ -57,7 +60,7 @@ function Board({ G, ctx, moves }: GameBoardProps<typeof gomoku>) {
             <circle cx="6" cy="6" r="5" fill="url(#black-gradient)" />
           </svg>
           <span className="gomoku-player-name">
-            {ctx.playerNames[ctx.playOrder[1]] ?? "Black"}
+            {ctx.playerNames[ctx.playOrder[0]] ?? "Black"}
           </span>
         </div>
         <div className="gomoku-status"></div>

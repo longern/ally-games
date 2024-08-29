@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 
 import broadcastChannelPeer from "../app/peer/broadcastChannel";
-import { Peer as PeerInterface } from "../app/peer/types";
 import { createPeerFactory as createPeerWebRTCFactory } from "../app/peer/webrtc";
 import { TurnServer } from "../app/settings";
 import { useAppSelector } from "../app/store";
@@ -51,56 +50,48 @@ async function fetchCloudflareTurn(
 }
 
 export function usePeerInterface() {
-  const [peerInterface, setPeerInterface] = useState<PeerInterface | undefined>(
-    undefined
-  );
   const protocol = useAppSelector((state) => state.settings.protocol);
   const turnServers = useAppSelector((state) => state.settings.turnServers);
 
-  useEffect(() => {
+  const peerInterface = useMemo(() => {
     switch (protocol) {
       case "broadcast-channel":
-        setPeerInterface(broadcastChannelPeer);
-        break;
-      case "webrtc":
-        {
-          async function getRtcConfiguration() {
-            const iceTurnServersSettled = await Promise.allSettled([
-              ...(turnServers || [])
-                .filter((turnServer) => !turnServer.disabled)
-                .map((turnServer) =>
-                  turnServer.type === "custom"
-                    ? Promise.resolve({
-                        urls: turnServer.urls,
-                        username: turnServer.username,
-                        credential: turnServer.credential,
-                      })
-                    : fetchCloudflareTurn(turnServer)
-                ),
-            ]);
+        return broadcastChannelPeer;
+      case "webrtc": {
+        async function getRtcConfiguration() {
+          const iceTurnServersSettled = await Promise.allSettled([
+            ...(turnServers || [])
+              .filter((turnServer) => !turnServer.disabled)
+              .map((turnServer) =>
+                turnServer.type === "custom"
+                  ? Promise.resolve({
+                      urls: turnServer.urls,
+                      username: turnServer.username,
+                      credential: turnServer.credential,
+                    })
+                  : fetchCloudflareTurn(turnServer)
+              ),
+          ]);
 
-            const iceTurnServers = iceTurnServersSettled
-              .filter(
-                (result): result is PromiseFulfilledResult<RTCIceServer> =>
-                  result.status === "fulfilled"
-              )
-              .map((result) => result.value);
+          const iceTurnServers = iceTurnServersSettled
+            .filter(
+              (result): result is PromiseFulfilledResult<RTCIceServer> =>
+                result.status === "fulfilled"
+            )
+            .map((result) => result.value);
 
-            return {
-              iceServers: [
-                { urls: ["stun:stun.cloudflare.com:3478"] },
-                ...iceTurnServers,
-              ],
-            };
-          }
-
-          setPeerInterface(
-            createPeerWebRTCFactory({
-              rtcConfiguration: getRtcConfiguration,
-            })
-          );
+          return {
+            iceServers: [
+              { urls: ["stun:stun.cloudflare.com:3478"] },
+              ...iceTurnServers,
+            ],
+          };
         }
-        break;
+
+        return createPeerWebRTCFactory({
+          rtcConfiguration: getRtcConfiguration,
+        });
+      }
     }
   }, [protocol, turnServers]);
 

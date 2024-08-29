@@ -48,9 +48,12 @@ export function GameGrid({
   return (
     <Grid container spacing={3}>
       {games.map((game) => (
-        <Grid item key={game.name} xs={6} md={4}>
+        <Grid item key={game.name} xs={6} md={4} lg={3}>
           <Card elevation={game.pathname === selected ? 8 : 1}>
-            <CardActionArea onClick={() => onClick(game.pathname)}>
+            <CardActionArea
+              onClick={() => onClick(game.pathname)}
+              sx={{ minHeight: "64px" }}
+            >
               <CardContent>{game.name}</CardContent>
             </CardActionArea>
           </Card>

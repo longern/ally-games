@@ -126,20 +126,25 @@ export const createPeerFactory: (options?: {
           connectionResolver = resolve;
         });
       async function* getConnections() {
-        while (abortController.signal.aborted === false)
-          yield await createConnectionResolver();
+        do {
+          const connection = await createConnectionResolver();
+          if (abortController.signal.aborted) break;
+          yield connection;
+        } while (true);
       }
 
       const ws = new WebSocket(signalServerURL);
       const remoteCaller = getRemoteCaller<FlarePeerClient>(ws);
       let interval: ReturnType<typeof setInterval>;
 
+      const rtcConfigurationPromise =
+        typeof options.rtcConfiguration === "function"
+          ? options.rtcConfiguration()
+          : Promise.resolve(options.rtcConfiguration);
+
       async function pollMessages() {
+        const rtcConfiguration = await rtcConfigurationPromise;
         const messages = await remoteCaller.poll().catch(() => []);
-        const rtcConfiguration =
-          typeof options.rtcConfiguration === "function"
-            ? await options.rtcConfiguration()
-            : options.rtcConfiguration;
         messages.forEach(
           signalMessageHandler(
             remoteCaller,

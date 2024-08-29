@@ -1,10 +1,13 @@
 import { Close as CloseIcon } from "@mui/icons-material";
 import {
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   IconButton,
+  Stack,
+  Typography,
 } from "@mui/material";
 import { StoreEnhancer } from "@reduxjs/toolkit";
 import React, { useEffect } from "react";
@@ -12,12 +15,13 @@ import React, { useEffect } from "react";
 import { Client, GameBoardComponent } from "../Client";
 import { Game } from "../app/game";
 import { setLobbyState } from "../app/lobby";
-import { createEnhancerFromLobby } from "../app/middlewares/lobby";
+import { createEnhancerFromLobby, joinLobby } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import Home from "./Home";
 import Lobby from "./Lobby";
 import { lazyGameComponents } from "./router";
 import { setSettings } from "../app/settings";
+import { usePeerInterface } from "./usePeerInterface";
 
 function ClientFloatingActions({ onLeave }: { onLeave: () => void }) {
   const [showLeaveDialog, setShowLeaveDialog] = React.useState(false);
@@ -108,7 +112,26 @@ function LazyClient({
   );
 }
 
+function Joining() {
+  return (
+    <Stack
+      spacing={2}
+      sx={{
+        height: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <CircularProgress />
+      <Typography variant="body2">Joining room...</Typography>
+    </Stack>
+  );
+}
+
 function App() {
+  const [loading, setLoading] = React.useState(false);
+  const loadedRef = React.useRef(false);
+
   const roomID = useAppSelector((state) => state.lobby.state.roomID);
   const matchRunning = useAppSelector(
     (state) => state.lobby.state.matchRunning
@@ -117,6 +140,21 @@ function App() {
   const gameName = useAppSelector((state) => state.lobby.state.game);
 
   const dispatch = useAppDispatch();
+  const peerInterface = usePeerInterface();
+
+  useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    const searchParams = new URLSearchParams(window.location.search);
+    const roomID = searchParams.get("p");
+    if (roomID) {
+      setLoading(true);
+      dispatch(joinLobby({ roomID, Peer: peerInterface }))
+        .unwrap()
+        .catch((err) => window.alert(err.message))
+        .finally(() => setLoading(false));
+    }
+  }, [dispatch, peerInterface]);
 
   useEffect(() => {
     if (nickname) return;
@@ -125,7 +163,9 @@ function App() {
     dispatch(setSettings({ value: { nickname: randomName } }));
   }, [nickname, dispatch]);
 
-  return matchRunning ? (
+  return loading ? (
+    <Joining />
+  ) : matchRunning ? (
     <LazyClient gameComponent={lazyGameComponents[`/${gameName}`]} />
   ) : roomID ? (
     <Lobby />

@@ -22,7 +22,7 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
-import React, { useEffect } from "react";
+import React, { useMemo } from "react";
 
 import { setLobbyState } from "../app/lobby";
 import { leaveLobby, setReady } from "../app/middlewares/lobby";
@@ -36,7 +36,7 @@ function QRCode({ value }: { value: string }) {
       src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=${encodeURIComponent(
         value
       )}`}
-      alt=""
+      alt={value}
       width="192"
       height="192"
     />
@@ -76,16 +76,16 @@ function Lobby() {
   const [showInvite, setShowInvite] = React.useState(false);
   const [showChooseGame, setShowChooseGame] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [readyCooldown, setReadyCooldown] = React.useState(false);
   const lobby = useAppSelector((state) => state.lobby.state);
   const playerID = useAppSelector((state) => state.lobby.playerID);
   const dispatch = useAppDispatch();
 
-  useEffect(() => {
-    dispatch(setLobbyState({ state: { game: "block-blast" } }));
-  }, [dispatch]);
-
-  const inviteSearchParam = new URLSearchParams({ p: lobby.roomID });
-  const inviteUrl = `${window.location.href}?${inviteSearchParam}`;
+  const inviteUrl = useMemo(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("p", lobby.roomID);
+    return url.toString();
+  }, [lobby.roomID]);
 
   return (
     <Stack sx={{ height: "100%" }}>
@@ -203,7 +203,7 @@ function Lobby() {
               width: "100%",
               maxWidth: (theme) => theme.breakpoints.values.sm,
               alignSelf: "center",
-              "& > *": { flexGrow: 1 },
+              "& > *": { flexBasis: "50%" },
             }}
           >
             <Button
@@ -217,6 +217,9 @@ function Lobby() {
               <Button
                 variant="contained"
                 size="large"
+                disabled={lobby.playOrder.some(
+                  (playerID) => !lobby.players[playerID].ready
+                )}
                 onClick={() =>
                   dispatch(setLobbyState({ state: { matchRunning: true } }))
                 }
@@ -227,11 +230,14 @@ function Lobby() {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() =>
-                  dispatch(setReady(!lobby.players[playerID].ready))
-                }
+                disabled={readyCooldown}
+                onClick={() => {
+                  dispatch(setReady(!lobby.players[playerID].ready));
+                  setReadyCooldown(true);
+                  setTimeout(() => setReadyCooldown(false), 1000);
+                }}
               >
-                Ready
+                {lobby.players[playerID]?.ready ? "Unready" : "Ready"}
               </Button>
             )}
           </Stack>

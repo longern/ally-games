@@ -218,9 +218,9 @@ function WebRTCSettings() {
                 >
                   <ListItemText
                     primary={
-                      turnServer.type === "custom"
-                        ? turnServer.urls
-                        : turnServer.keyId
+                      turnServer.type === "cloudflare"
+                        ? `Cloudflare ${turnServer.keyId.slice(0, 8)}...`
+                        : turnServer.urls
                     }
                   />
                   <NavigateNextIcon />

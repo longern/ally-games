@@ -62,6 +62,8 @@ const broadcastChannelPeer: Peer = {
       peer.postMessage(JSON.stringify({ jsonrpc: "2.0", result, id: data.id }));
     });
 
+    abortController.signal.onabort = () => peer.close();
+
     idPromiseResolver(channelName);
 
     return {
