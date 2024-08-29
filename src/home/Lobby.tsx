@@ -22,12 +22,14 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 
+import { Game } from "../app/game";
 import { setLobbyState } from "../app/lobby";
 import { leaveLobby, setReady } from "../app/middlewares/lobby";
 import { useAppDispatch, useAppSelector } from "../app/store";
 import DialogToolbar from "./DialogToolbar";
+import { lazyGameComponents } from "./router";
 import { GameGrid, useGameList } from "./useGameList";
 
 function QRCode({ value }: { value: string }) {
@@ -77,6 +79,7 @@ function Lobby() {
   const [showChooseGame, setShowChooseGame] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [readyCooldown, setReadyCooldown] = React.useState(false);
+  const [gameDefinition, setGameDefinition] = React.useState<Game>();
   const lobby = useAppSelector((state) => state.lobby.state);
   const playerID = useAppSelector((state) => state.lobby.playerID);
   const dispatch = useAppDispatch();
@@ -86,6 +89,15 @@ function Lobby() {
     url.searchParams.set("p", lobby.roomID);
     return url.toString();
   }, [lobby.roomID]);
+
+  useEffect(() => {
+    if (!lobby.game) return;
+    lazyGameComponents[`/${lobby.game}`]().then(({ game }) =>
+      setGameDefinition(game)
+    );
+  }, [lobby.game]);
+
+  const maxPlayers = gameDefinition?.maxPlayers;
 
   return (
     <Stack sx={{ height: "100%" }}>
@@ -183,7 +195,7 @@ function Lobby() {
                 </Grid>
               ))}
               {Array.from({
-                length: 6 - Object.keys(lobby.players).length,
+                length: (maxPlayers ?? 6) - Object.keys(lobby.players).length,
               }).map((_, i) => (
                 <Grid item key={i} xs={4} md={3} sx={{ paddingY: 4 }}>
                   <Stack spacing={1} sx={{ alignItems: "center" }}>

@@ -1,5 +1,12 @@
 import { Connection, Peer } from "./types";
 
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function randomBase32(length: number) {
+  return Array.from(crypto.getRandomValues(new Uint32Array(length)))
+    .map((n) => BASE32_ALPHABET[n & 31])
+    .join("");
+}
+
 function adaptor(broadcastChannel: BroadcastChannel): Connection {
   return {
     addEventListener: (type: string, callback) => {
@@ -40,9 +47,7 @@ const broadcastChannelPeer: Peer = {
 
     const methods = {
       connect() {
-        const randomChannel = crypto
-          .getRandomValues(new Uint32Array(1))[0]
-          .toString(36);
+        const randomChannel = randomBase32(8);
 
         const connection = new BroadcastChannel(randomChannel);
         connectionResolver(adaptor(connection));
@@ -51,7 +56,7 @@ const broadcastChannelPeer: Peer = {
       },
     };
 
-    const channelName = Math.random().toString(36).substring(7);
+    const channelName = randomBase32(8);
     const peer = new BroadcastChannel(channelName);
 
     peer.addEventListener("message", async (event) => {
