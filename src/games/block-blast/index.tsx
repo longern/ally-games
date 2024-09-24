@@ -59,7 +59,7 @@ function Board({ G, moves }: GameBoardProps<typeof game>) {
     (event: React.PointerEvent) => {
       setDraggingCandidate(null);
       const targetRect = event.currentTarget.getBoundingClientRect();
-      moves.placeBlock(
+      moves.placeCandidate(
         draggingCandidate!,
         Math.round(pos.x / targetRect.width),
         Math.round(pos.y / targetRect.height)
